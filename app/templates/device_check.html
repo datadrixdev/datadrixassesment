@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}System & Hardware Verification - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5 security-locked device-check-screen" oncopy="return false;" oncut="return false;" onpaste="return false;" oncontextmenu="return false;">
+  <div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-9">
+
+      <!-- Breadcrumb / Stage Tracker -->
+      <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom border-secondary-subtle">
+        <div>
+          <span class="badge bg-primary bg-opacity-20 text-cyan border border-info border-opacity-30 px-3 py-1 rounded-pill small fw-semibold">Step 2 of 3</span>
+          <h2 class="h3 fw-bold text-white mt-2 mb-0">Hardware &amp; Environment Verification</h2>
+        </div>
+        <div class="text-end">
+          <span class="text-slate-400 small">Candidate:</span>
+          <div class="fw-bold text-white fs-6">{{ candidate.full_name }}</div>
+        </div>
+      </div>
+
+      <!-- Previous Assessment & Retake Status Banner (If Candidate Has Taken Test Before) -->
+      {% if history and history.has_previous_attempt %}
+      <div class="card-clean p-4 mb-4 border border-info border-opacity-40" style="background: linear-gradient(135deg, rgba(14, 22, 40, 0.95) 0%, rgba(30, 58, 138, 0.25) 100%);">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary bg-opacity-20 text-cyan border border-info border-opacity-30 px-3 py-1 rounded-pill small fw-semibold">
+              <i class="bi bi-clock-history me-1"></i> Retake Candidate Details
+            </span>
+            <span class="text-white small fw-bold">Attempt #{{ history.completed_count + 1 }}</span>
+          </div>
+          <div class="text-secondary small">
+            Previous Test Given: <strong class="text-white">{{ history.previous_timestamp.strftime('%B %d, %Y at %I:%M %p UTC') if history.previous_timestamp else 'Earlier Attempt' }}</strong>
+          </div>
+        </div>
+
+        <div class="row g-3 my-1">
+          <div class="col-md-4">
+            <div class="p-2 bg-dark bg-opacity-60 rounded border border-secondary text-center">
+              <span class="text-muted small d-block">Previous Score</span>
+              <span class="fs-5 fw-bold text-white">{{ history.previous_attempt.score }} / 20</span>
+              <span class="text-cyan small fw-semibold ms-1">({{ history.previous_attempt.percentage }}%)</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="p-2 bg-dark bg-opacity-60 rounded border border-secondary text-center">
+              <span class="text-muted small d-block">Previous Discount</span>
+              {% if history.discount and history.discount.discount_percent > 0 %}
+              <span class="fs-5 fw-bold text-success">{{ history.discount.discount_percent }}% OFF</span>
+              {% else %}
+              <span class="fs-5 fw-bold text-secondary">None (&lt; 5 marks)</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="p-2 bg-dark bg-opacity-60 rounded border border-secondary text-center">
+              <span class="text-muted small d-block">10-Digit Voucher Key</span>
+              {% if history.discount and history.discount.pin %}
+              <span class="fs-5 fw-bold text-cyan font-monospace" style="letter-spacing: 0.12em;">{{ history.discount.pin }}</span>
+              {% else %}
+              <span class="text-muted small">No Key Generated</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="small mt-3 pt-2 border-top border-secondary-subtle">
+          {% if history.cooldown_active %}
+          <div class="text-warning fw-semibold">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> Retake Cooldown Active:
+            <span class="text-slate-300 fw-normal">
+              On behalf of your previous assessment given timestamp, you can retake this exam in <strong class="text-white">{{ history.hours_remaining }} hours and {{ history.minutes_remaining }} minutes</strong> (Eligible at {{ history.eligible_at.strftime('%B %d, %Y at %I:%M %p UTC') }}).
+            </span>
+          </div>
+          {% else %}
+          <div class="text-success fw-semibold">
+            <i class="bi bi-check-circle-fill me-1"></i> Retake Cooldown Elapsed:
+            <span class="text-slate-300 fw-normal">You have completed your waiting period and may start your new assessment attempt.</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Main Checks Grid -->
+      <div class="row g-4">
+        <!-- Left: Camera Preview & Test -->
+        <div class="col-lg-6">
+          <div class="card-clean p-3 p-sm-4 h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="fw-bold text-white mb-0 d-flex align-items-center">
+                <i class="bi bi-camera-video text-cyan me-2"></i> Camera Feed
+              </h5>
+              <span id="cameraStatusBadge" class="badge status-pill-pending px-3 py-1 rounded-pill">
+                <i class="bi bi-hourglass-split me-1"></i> Awaiting Permission
+              </span>
+            </div>
+
+            <!-- Video Preview Container -->
+            <div class="position-relative bg-dark bg-opacity-75 rounded-3 overflow-hidden d-flex align-items-center justify-content-center mb-3 border border-secondary" style="aspect-ratio: 4/3; min-height: 200px; max-height: 360px;">
+              <video id="webcamPreview" autoplay playsinline muted class="w-100 h-100 object-fit-cover d-none" style="transform: scaleX(-1);"></video>
+              <canvas id="deviceCheckCanvas" class="position-absolute top-0 start-0 w-100 h-100 d-none" style="pointer-events: none; z-index: 2;"></canvas>
+              
+              <!-- Placeholder when camera is inactive -->
+              <div id="cameraPlaceholder" class="text-center p-3 p-sm-4 text-light">
+                <i class="bi bi-camera-video-off fs-1 text-cyan mb-2 d-block opacity-75"></i>
+                <p class="small text-slate-200 mb-3 fw-medium">Camera access is required for proctoring verification.</p>
+                <button type="button" id="requestMediaBtn" class="btn btn-outline-info btn-sm px-3 fw-semibold">
+                  <i class="bi bi-shield-lock me-1"></i> Grant Permissions
+                </button>
+              </div>
+
+              <!-- Camera Active Overlay -->
+              <div id="cameraActiveOverlay" class="position-absolute top-0 start-0 m-2 px-2 py-1 bg-dark bg-opacity-75 rounded text-white small d-none border border-secondary">
+                <i class="bi bi-record-fill text-danger me-1"></i> Live Preview
+              </div>
+            </div>
+
+            <!-- AI Face Tracking & Neutral Pose Calibration Panel -->
+            <div class="p-3 bg-dark bg-opacity-60 rounded-3 border border-secondary mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-white"><i class="bi bi-person-bounding-box text-cyan me-1"></i> AI Proctoring Calibration:</span>
+                <button type="button" id="calibratePoseBtn" class="btn btn-outline-info btn-sm py-1 px-3 fw-semibold" disabled>
+                  <i class="bi bi-compass me-1"></i> Calibrate Neutral Pose
+                </button>
+              </div>
+              <p class="small text-slate-300 mb-2 lh-sm" style="font-size: 0.8rem;">
+                Sit comfortably facing the screen to establish your neutral baseline for head-pose proctoring.
+              </p>
+              <div class="d-flex flex-wrap gap-1 gap-sm-2 small">
+                <span id="calibFaceStatus" class="badge bg-dark text-secondary border border-secondary px-2 py-1">
+                  <span class="spinner-border spinner-border-sm me-1" style="width: 10px; height: 10px;"></span> MediaPipe: Initializing...
+                </span>
+                <span id="calibAngleStatus" class="badge bg-dark text-cyan border border-info border-opacity-30 px-2 py-1">
+                  Pose: --
+                </span>
+                <span id="calibPhoneStatus" class="badge bg-dark text-secondary border border-secondary px-2 py-1">
+                  <span class="spinner-border spinner-border-sm me-1" style="width: 10px; height: 10px;"></span> Phone Guard: Loading...
+                </span>
+              </div>
+            </div>
+
+            <div class="text-slate-300 small mt-auto">
+              <i class="bi bi-info-circle text-cyan me-1"></i> Ensure your face is centered, well-lit, and visible throughout the evaluation.
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Microphone Test & System Compatibility -->
+        <div class="col-lg-6">
+          <div class="card-clean p-3 p-sm-4 h-100 d-flex flex-column justify-content-between">
+            
+            <!-- 1. Microphone Check & Acoustic Profile -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="fw-bold text-white mb-0 d-flex align-items-center">
+                  <i class="bi bi-mic text-cyan me-2"></i> Microphone Check
+                </h5>
+                <span id="micStatusBadge" class="badge status-pill-pending px-3 py-1 rounded-pill">
+                  <i class="bi bi-hourglass-split me-1"></i> Awaiting Permission
+                </span>
+              </div>
+              <p class="text-slate-300 small mb-3">Speak into your microphone to verify live audio input levels.</p>
+
+              <!-- Live Level Meter & Status Card -->
+              <div class="p-3 bg-dark bg-opacity-60 rounded-3 border border-secondary">
+                <div class="d-flex justify-content-between small mb-1">
+                  <span class="text-slate-200 fw-medium">Input Level:</span>
+                  <span id="micLevelText" class="text-cyan fw-bold">0%</span>
+                </div>
+                <div class="audio-meter-bar mb-2">
+                  <div id="audioMeterFill" class="audio-meter-fill"></div>
+                </div>
+
+                <!-- Sound Detection Check -->
+                <div id="micTestResult" class="p-2 rounded text-center small mic-box-idle mb-2">
+                  <i class="bi bi-soundwave text-cyan me-1"></i> Speak aloud to complete microphone check...
+                </div>
+
+                <!-- Ambient Acoustic Profile -->
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary-subtle small">
+                  <span class="text-slate-300"><i class="bi bi-soundwave text-cyan me-1"></i> Acoustic Profile:</span>
+                  <span id="ambientNoiseBadge" class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-1">
+                    <i class="bi bi-shield-check me-1"></i> Quiet Environment (Optimal)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. System & Browser Diagnostics (Compact) -->
+            <div class="p-3 bg-dark bg-opacity-60 rounded-3 border border-secondary mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-white">
+                  <i class="bi bi-browser-chrome text-cyan me-1"></i> System &amp; Browser Diagnostics
+                </span>
+                <span class="badge bg-dark text-cyan border border-info border-opacity-25 px-2 py-1" style="font-size: 0.7rem;">Verified</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="d-flex justify-content-between align-items-center p-2 rounded bg-dark bg-opacity-75 border border-secondary-subtle">
+                    <span class="small text-slate-300 text-truncate me-1"><i class="bi bi-camera-video text-cyan me-1"></i> WebRTC Cam</span>
+                    <span id="compatMedia" class="badge status-pill-granted py-1 px-2" style="font-size: 0.7rem;">Supported</span>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="d-flex justify-content-between align-items-center p-2 rounded bg-dark bg-opacity-75 border border-secondary-subtle">
+                    <span class="small text-slate-300 text-truncate me-1"><i class="bi bi-soundwave text-cyan me-1"></i> Web Audio</span>
+                    <span id="compatAudio" class="badge status-pill-granted py-1 px-2" style="font-size: 0.7rem;">Supported</span>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="d-flex justify-content-between align-items-center p-2 rounded bg-dark bg-opacity-75 border border-secondary-subtle">
+                    <span class="small text-slate-300 text-truncate me-1"><i class="bi bi-window-sidebar text-cyan me-1"></i> Visibility API</span>
+                    <span id="compatVisibility" class="badge status-pill-granted py-1 px-2" style="font-size: 0.7rem;">Supported</span>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="d-flex justify-content-between align-items-center p-2 rounded bg-dark bg-opacity-75 border border-secondary-subtle">
+                    <span class="small text-slate-300 text-truncate me-1"><i class="bi bi-fullscreen text-cyan me-1"></i> Fullscreen API</span>
+                    <span id="compatFullscreen" class="badge status-pill-granted py-1 px-2" style="font-size: 0.7rem;">Supported</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Start Assessment Action -->
+            <div class="mt-auto pt-1">
+              <form method="POST" action="{{ url_for('assessment.start_assessment') }}" id="startTestForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if history and history.cooldown_active %}
+                <div class="alert alert-warning py-2 px-3 mb-2 small border border-warning text-center">
+                  <i class="bi bi-clock-history me-1"></i> Retake locked: <strong>{{ history.hours_remaining }}h {{ history.minutes_remaining }}m</strong> remaining
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="submit" id="startTestBtn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm" disabled>
+                    <i class="bi bi-lock-fill me-1"></i> Retake Locked
+                  </button>
+                  <button type="submit" name="bypass_cooldown" value="1" class="btn btn-outline-secondary btn-sm px-3 text-nowrap" title="Bypass cooldown for development testing">
+                    Bypass
+                  </button>
+                </div>
+                {% else %}
+                <button type="submit" id="startTestBtn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm" disabled>
+                  <i class="bi bi-play-circle-fill me-2"></i> Start Test (15 Minutes)
+                </button>
+                {% endif %}
+              </form>
+
+              <div id="startChecklistNotice" class="text-slate-300 small mt-2 text-center" style="font-size: 0.8rem;">
+                <i class="bi bi-info-circle text-cyan me-1"></i> Both camera and microphone must be verified before the Start Test button is activated.
+              </div>
+            </div>
+
+            <!-- Footer note aligned with left card note -->
+            <div class="text-slate-300 small mt-2 pt-2 border-top border-secondary-subtle">
+              <i class="bi bi-lock-fill text-cyan me-1"></i> Fullscreen mode and integrity proctoring auto-engage upon starting the assessment.
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Permission Denied Help Box (Hidden by default, shown if denied) -->
+      <div id="permissionHelpBox" class="alert alert-warning mt-4 d-none border border-warning shadow-sm" role="alert" style="background-color: rgba(245, 158, 11, 0.15); color: #FDE68A;">
+        <h6 class="fw-bold alert-heading mb-2 text-warning">
+          <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Camera or Microphone Access Was Denied
+        </h6>
+        <p class="small mb-2 text-slate-200">The assessment environment requires camera and microphone permissions to ensure assessment integrity. To enable permissions:</p>
+        <ul class="small mb-2 text-slate-200">
+          <li><strong>Google Chrome / Edge / Brave:</strong> Click the padlock or tune icon <i class="bi bi-sliders"></i> in the left of the address bar, toggle Camera and Microphone to <em>Allow</em>, then reload this page.</li>
+          <li><strong>Mozilla Firefox:</strong> Click the permissions icon next to the address bar, clear the blocked permissions, and refresh.</li>
+          <li><strong>Apple Safari:</strong> Open <em>Settings &gt; Websites &gt; Camera/Microphone</em>, locate this site, and choose <em>Allow</em>.</li>
+        </ul>
+        <button type="button" class="btn btn-outline-warning btn-sm" onclick="location.reload();">
+          <i class="bi bi-arrow-clockwise me-1"></i> Reload &amp; Retry Permissions
+        </button>
+      </div>
+
+      <!-- Policy Badges -->
+      <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
+        <span class="badge bg-dark text-cyan border border-info border-opacity-30 px-3 py-2 rounded-pill small fw-semibold">
+          <i class="bi bi-arrow-clockwise me-1"></i> Retake Policy: Assessment can be retaken after 24 hours
+        </span>
+        <span class="badge bg-dark text-success border border-success border-opacity-30 px-3 py-2 rounded-pill small fw-semibold">
+          <i class="bi bi-tag-fill me-1"></i> Voucher Validity: 10-digit code is valid for 3 days (72 hours)
+        </span>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  window.RETAKE_COOLDOWN_ACTIVE = {{ 'true' if history and history.cooldown_active else 'false' }};
+</script>
+
+<!-- MediaPipe Tasks Vision Module Loader -->
+<script type="module">
+  import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+  window.MediaPipeVision = { FilesetResolver, FaceLandmarker };
+  window.dispatchEvent(new CustomEvent("mediapipe-vision-loaded"));
+</script>
+
+<!-- TensorFlow.js & COCO-SSD for Browser Computer Vision -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
+<!-- AI Proctoring Vision Modules -->
+<script src="{{ url_for('static', filename='js/proctoring/head_pose.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/proctoring/phone_detector.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/proctoring/proctoring_engine.js') }}?v=4.0"></script>
+
+<script src="{{ url_for('static', filename='js/security_lock.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/device_check.js') }}?v=4.1"></script>
+{% endblock %}

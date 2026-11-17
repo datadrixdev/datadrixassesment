@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+
+{% block title %}Online Aptitude Assessment - Official Evaluation Portal - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-wide py-4">
+
+  <!-- =========================================================================
+       Main Two-Column Balanced Workspace (Specs + Matrix on Left, Form on Right)
+       ========================================================================= -->
+  <div class="row g-4 mb-4">
+
+    <!-- Left Column (col-xl-7 col-lg-6): Specifications, Discount Tiers & Rules -->
+    <div class="col-xl-7 col-lg-6">
+      <div class="d-flex flex-column gap-3">
+
+        <!-- Assessment Specifications 6-Box Grid -->
+        <div class="card-clean p-3 p-md-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-white mb-0 d-flex align-items-center">
+              <i class="bi bi-clipboard2-check text-cyan me-2"></i> Online Aptitude Assessment Structure
+            </h5>
+            <span class="badge bg-dark text-cyan border border-info border-opacity-25 small px-3 py-1 rounded-pill">
+              Standardized Rules
+            </span>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-6 col-md-4">
+              <div class="spec-grid-item p-2 p-sm-3">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 mb-1">
+                  <i class="bi bi-hash text-cyan fs-5"></i>
+                  <span class="fw-bold text-white small">20 Questions</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  Total questions: 20 MCQs (5 randomly selected from each domain).
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <div class="spec-grid-item p-2 p-sm-3">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 mb-1">
+                  <i class="bi bi-clock-history text-cyan fs-5"></i>
+                  <span class="fw-bold text-white small">15 Minutes</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  Duration: 15 minutes timed countdown with auto-submit protection.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <div class="spec-grid-item p-2 p-sm-3">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 mb-1">
+                  <i class="bi bi-ui-checks text-cyan fs-5"></i>
+                  <span class="fw-bold text-white small">Multiple Choice</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  4 options (A, B, C, D) per question with single correct answer.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <div class="spec-grid-item p-2 p-sm-3">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 mb-1">
+                  <i class="bi bi-camera-video text-cyan fs-5"></i>
+                  <span class="fw-bold text-white small">Device Check</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  Webcam and microphone access required for integrity verification.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <div class="spec-grid-item p-2 p-sm-3">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 mb-1">
+                  <i class="bi bi-arrow-repeat text-cyan fs-5"></i>
+                  <span class="fw-bold text-white small">24-Hour Retake</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  Assessment can be retaken after a 24-hour cooldown period.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <div class="spec-grid-item p-2 p-sm-3">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 mb-1">
+                  <i class="bi bi-shield-lock text-cyan fs-5"></i>
+                  <span class="fw-bold text-white small">Anti-Cheat Guard</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  Screen-switching detection with an automatic 2-strike policy.
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Datadrix Score-Based Discount Milestone Matrix -->
+        <div class="card-clean p-3 p-md-4 border border-info border-opacity-30" style="background: linear-gradient(135deg, rgba(14, 22, 40, 0.95) 0%, rgba(30, 58, 138, 0.2) 100%);">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+              <h5 class="fw-bold text-white mb-0 d-flex align-items-center">
+                <i class="bi bi-award text-cyan me-2"></i> Official Datadrix Discount Rewards
+              </h5>
+              <div class="text-muted small">Score high to unlock exclusive 10-digit voucher keys valid for 3 days</div>
+            </div>
+            <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-3 py-1 rounded-pill small fw-bold">
+              <i class="bi bi-tag-fill me-1"></i> Up to 20% OFF
+            </span>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3">
+              <div class="milestone-badge-box">
+                <div class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-40 px-2 py-1 rounded-pill small fw-bold mb-1">
+                  20% DISCOUNT
+                </div>
+                <div class="fw-bold text-white fs-6">16 – 20 Marks</div>
+                <div class="text-muted" style="font-size: 0.72rem;">Advanced Mastery Tier</div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="milestone-badge-box">
+                <div class="badge bg-primary bg-opacity-25 text-cyan border border-info border-opacity-40 px-2 py-1 rounded-pill small fw-bold mb-1">
+                  15% DISCOUNT
+                </div>
+                <div class="fw-bold text-white fs-6">11 – 15 Marks</div>
+                <div class="text-muted" style="font-size: 0.72rem;">Proficient Tier</div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="milestone-badge-box">
+                <div class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-40 px-2 py-1 rounded-pill small fw-bold mb-1">
+                  10% DISCOUNT
+                </div>
+                <div class="fw-bold text-white fs-6">5 – 10 Marks</div>
+                <div class="text-muted" style="font-size: 0.72rem;">Developing Tier</div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="milestone-badge-box">
+                <div class="badge bg-dark text-muted border border-secondary px-2 py-1 rounded-pill small fw-bold mb-1">
+                  NO DISCOUNT
+                </div>
+                <div class="fw-bold text-white fs-6">0 – 4 Marks</div>
+                <div class="text-muted" style="font-size: 0.72rem;">Baseline Tier</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-dark bg-opacity-60 border border-secondary-subtle small text-slate-300">
+            <div>
+              <i class="bi bi-key-fill text-cyan me-1"></i>
+              <strong>10-Digit Alphanumeric Key:</strong> Stored in MongoDB &bull; Valid for <strong>3 Days (72 Hours)</strong> on official website.
+            </div>
+            <span class="text-muted d-none d-sm-inline" style="font-size: 0.75rem;">www.datadrix.com</span>
+          </div>
+        </div>
+
+
+      </div>
+    </div>
+
+    <!-- Right Column (col-xl-5 col-lg-6): Candidate Registration Form & Live Validation -->
+    <div class="col-xl-5 col-lg-6">
+      <div class="card-clean p-3 p-sm-4 d-flex flex-column">
+
+        <!-- Form Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary-subtle">
+          <div>
+            <h5 class="fw-bold text-white mb-0">Candidate Registration</h5>
+            <div class="text-muted small">Enter your details to initiate your exam session</div>
+          </div>
+          <span class="badge bg-dark text-cyan border border-info border-opacity-30 px-3 py-1 rounded-pill small">
+            <i class="bi bi-shield-lock-fill text-cyan me-1"></i> Verified
+          </span>
+        </div>
+
+        <!-- Dynamic Candidate Lookup Card (Appears ONLY after candidate enters their email address) -->
+        <div id="dynamicPreviousAttemptCard" class="p-3 mb-3 rounded-3 border border-info border-opacity-40 d-none" style="background: linear-gradient(135deg, rgba(14, 22, 40, 0.95) 0%, rgba(30, 58, 138, 0.25) 100%);">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-primary bg-opacity-20 text-cyan border border-info border-opacity-30 px-3 py-1 rounded-pill small fw-semibold">
+              <i class="bi bi-clock-history me-1"></i> Candidate History Found
+            </span>
+            <span id="dynPrevDate" class="text-secondary small"></span>
+          </div>
+          <h6 class="fw-bold text-white mb-2" id="dynWelcomeName">Welcome Back!</h6>
+          <div class="row g-2 mb-2 text-center small">
+            <div class="col-6">
+              <div class="p-2 bg-dark bg-opacity-60 rounded border border-secondary-subtle">
+                <span class="text-muted d-block" style="font-size: 0.75rem;">Previous Score</span>
+                <strong class="text-white fs-6" id="dynScoreText">--</strong>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 bg-dark bg-opacity-60 rounded border border-secondary-subtle">
+                <span class="text-muted d-block" style="font-size: 0.75rem;">Earned Discount</span>
+                <strong class="text-cyan fs-6" id="dynDiscountText">--</strong>
+              </div>
+            </div>
+          </div>
+
+          <div id="dynPinContainer" class="p-2 bg-dark bg-opacity-75 rounded border border-info border-opacity-30 mb-2 d-none justify-content-between align-items-center">
+            <div>
+              <span class="text-muted small" style="font-size: 0.75rem;">10-Digit Voucher Key:</span>
+              <div class="font-monospace fw-bold text-cyan" id="dynPinText" style="letter-spacing: 0.15em;"></div>
+            </div>
+            <button type="button" class="btn btn-outline-info btn-sm py-1 px-2" id="dynCopyPinBtn">
+              <i class="bi bi-clipboard me-1"></i> Copy
+            </button>
+          </div>
+
+          <div class="small mt-2 pt-2 border-top border-secondary-subtle" id="dynCooldownNotice"></div>
+        </div>
+
+        <!-- Registration Form -->
+        <form id="registrationForm" method="POST" action="{{ url_for('main.register') }}" novalidate class="d-flex flex-column gap-3">
+          {{ form.csrf_token }}
+
+          <!-- Full Name Field -->
+          <div>
+            <label for="fullName" class="form-label d-flex justify-content-between mb-1">
+              <span>Full Name <span class="text-danger">*</span></span>
+              <span class="text-muted small" style="font-size: 0.75rem;">Legal candidate name</span>
+            </label>
+            {{ form.full_name(class="form-control" + (" is-invalid" if form.full_name.errors else ""), id="fullName", placeholder="e.g. Alexander Morgan", required=true) }}
+            {% if form.full_name.errors %}
+              <div class="invalid-feedback d-block">{{ form.full_name.errors[0] }}</div>
+            {% endif %}
+            <div class="invalid-feedback" id="fullNameFeedback">Please enter your legal full name (at least 2 characters).</div>
+          </div>
+
+          <!-- Email Field -->
+          <div>
+            <label for="emailAddress" class="form-label d-flex justify-content-between mb-1">
+              <span>Email Address <span class="text-danger">*</span></span>
+              <span class="text-muted small" style="font-size: 0.75rem;">Verification &amp; results</span>
+            </label>
+            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), id="emailAddress", placeholder="alexander@example.com", type="email", required=true) }}
+            {% if form.email.errors %}
+              <div class="invalid-feedback d-block">{{ form.email.errors[0] }}</div>
+            {% endif %}
+            <div class="invalid-feedback" id="emailFeedback">Please enter a valid email address.</div>
+          </div>
+
+          <!-- Mobile Number Field with Clean Region Selection (50/50 split) -->
+          <div>
+            <label class="form-label d-flex justify-content-between mb-1">
+              <span>Mobile Number <span class="text-danger">*</span></span>
+              <span class="text-muted small" style="font-size: 0.75rem;">Select country first</span>
+            </label>
+            <div class="row g-2">
+              <!-- Region / Country Selector (Clean text, no flag emojis) -->
+              <div class="col-sm-6">
+                {{ form.country_code(class="form-select" + (" is-invalid" if form.country_code.errors else ""), id="countryCode", required=true) }}
+                {% if form.country_code.errors %}
+                  <div class="invalid-feedback d-block">{{ form.country_code.errors[0] }}</div>
+                {% endif %}
+                <div class="invalid-feedback" id="countryCodeFeedback">Please select your country/region.</div>
+              </div>
+
+              <!-- Phone Number Input -->
+              <div class="col-sm-6">
+                {{ form.mobile_number(class="form-control" + (" is-invalid" if form.mobile_number.errors else ""), id="mobileNumber", placeholder="Phone number (e.g. 9876543210)", required=true) }}
+                {% if form.mobile_number.errors %}
+                  <div class="invalid-feedback d-block">{{ form.mobile_number.errors[0] }}</div>
+                {% endif %}
+                <div class="invalid-feedback" id="mobileFeedback">Please enter a valid mobile number (6 to 15 digits).</div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Consent Checkbox -->
+          <div>
+            <div class="form-check">
+              {{ form.consent(class="form-check-input" + (" is-invalid" if form.consent.errors else ""), id="consentCheckbox", required=true) }}
+              <label class="form-check-label small text-secondary" for="consentCheckbox">
+                I confirm that I have read the assessment instructions, retake policy (24-hour cooldown), and privacy notice. I agree to grant camera and microphone access.
+              </label>
+            </div>
+            {% if form.consent.errors %}
+              <div class="invalid-feedback d-block">{{ form.consent.errors[0] }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Submit CTA Button -->
+          <div class="pt-1">
+            <button type="submit" id="startAssessmentBtn" class="btn btn-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2" disabled>
+              <span id="btnText">Start Assessment</span>
+              <i class="bi bi-arrow-right" id="btnIcon"></i>
+              <span class="spinner-border spinner-border-sm d-none" id="btnSpinner" role="status" aria-hidden="true"></span>
+            </button>
+
+            <div class="text-center mt-2">
+              <span class="text-muted small" style="font-size: 0.78rem;">
+                <i class="bi bi-info-circle text-cyan me-1"></i> The 15-minute timer will not start during registration or device verification.
+              </span>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       4. Bottom Full-Width Enterprise Trust & Security Architecture (4 Columns)
+       ========================================================================= -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-3">
+      <div class="trust-card">
+        <div class="info-card-icon" style="margin-right: 0;">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-white small mb-1">AI Proctoring Guard</div>
+          <div class="text-muted small" style="font-size: 0.78rem;">Continuous webcam &amp; audio monitoring with two-strike window blur detection.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="trust-card">
+        <div class="info-card-icon" style="margin-right: 0;">
+          <i class="bi bi-clock-history"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-white small mb-1">Server-Authoritative Clock</div>
+          <div class="text-muted small" style="font-size: 0.78rem;">Uncompromising 15-minute backend timer with automatic submission protection.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="trust-card">
+        <div class="info-card-icon" style="margin-right: 0;">
+          <i class="bi bi-key-fill"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-white small mb-1">10-Digit Alphanumeric Keys</div>
+          <div class="text-muted small" style="font-size: 0.78rem;">Cryptographically unique voucher codes stored in MongoDB with 3-day validity.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="trust-card">
+        <div class="info-card-icon" style="margin-right: 0;">
+          <i class="bi bi-trophy"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-white small mb-1">Digital Competency Seals</div>
+          <div class="text-muted small" style="font-size: 0.78rem;">Verified domain analytics and merit rating reports generated instantly upon submission.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       5. Candidate FAQ & Policy Guidelines (4 Columns)
+       ========================================================================= -->
+  <div class="row g-3">
+    <div class="col-md-6 col-xl-3">
+      <div class="faq-box">
+        <div class="fw-bold text-white small mb-1 d-flex align-items-center">
+          <i class="bi bi-arrow-clockwise text-cyan me-2"></i> Retake Cooldown Policy
+        </div>
+        <p class="text-muted mb-0" style="font-size: 0.78rem;">
+          You can retake this assessment after 24 hours based on your previous completion timestamp. Re-entering your email shows your live countdown timer.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="faq-box">
+        <div class="fw-bold text-white small mb-1 d-flex align-items-center">
+          <i class="bi bi-percent text-success me-2"></i> Discount Redemption
+        </div>
+        <p class="text-muted mb-0" style="font-size: 0.78rem;">
+          Your 10-digit voucher key is applied during checkout on <a href="https://www.datadrix.com" target="_blank" class="text-cyan text-decoration-none">www.datadrix.com</a>. Discounts range from 10% to 20% based on score.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="faq-box">
+        <div class="fw-bold text-white small mb-1 d-flex align-items-center">
+          <i class="bi bi-calendar-check text-warning me-2"></i> 3-Day Key Expiration
+        </div>
+        <p class="text-muted mb-0" style="font-size: 0.78rem;">
+          All earned voucher keys are valid for exactly 72 hours (3 days) from test completion and are permanently recorded in the database.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="faq-box">
+        <div class="fw-bold text-white small mb-1 d-flex align-items-center">
+          <i class="bi bi-shield-x text-danger me-2"></i> Anti-Cheating Protocol
+        </div>
+        <p class="text-muted mb-0" style="font-size: 0.78rem;">
+          Copy-paste, right-click, and developer shortcuts are strictly disabled. Leaving the window triggers strike warnings and can invalidate your session.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/registration.js') }}?v=3.0"></script>
+{% endblock %}

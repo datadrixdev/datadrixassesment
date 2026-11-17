@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment in Progress - {{ app_name }}{% endblock %}
+
+{% block body_class %}assessment-page{% endblock %}
+
+{% block navbar %}
+<!-- Datadrix Assessment Exam Header -->
+<header class="assessment-header">
+  <div class="container-fluid px-2 px-sm-3 px-md-4 d-flex align-items-center justify-content-between">
+    <!-- Brand & Candidate Details -->
+    <div class="d-flex align-items-center gap-2 gap-sm-3">
+      <div class="d-flex align-items-center">
+        <img src="{{ url_for('static', filename='images/datadrix-logo.png') }}" alt="Datadrix" height="34" class="me-1 me-sm-2 header-logo-img">
+      </div>
+
+      <div class="vr d-none d-md-block opacity-25"></div>
+
+      <div class="d-none d-sm-flex flex-column">
+        <span class="fw-bold text-white lh-1 text-truncate" style="font-size: 0.95rem; max-width: 150px;">{{ candidate_name }}</span>
+        <span class="text-muted small" style="font-size: 0.72rem;">Attempt #{{ attempt.attempt_number }} &bull; 20 MCQs</span>
+      </div>
+    </div>
+
+    <!-- Center: Countdown Timer -->
+    <div class="d-flex align-items-center">
+      <div id="examTimer" class="timer-badge shadow-sm" title="Server-authoritative assessment deadline">
+        <i class="bi bi-clock-history text-cyan" id="timerIcon"></i>
+        <span id="timerDisplay">15:00</span>
+      </div>
+    </div>
+
+    <!-- Right: Proctoring Indicators & AI Monitoring HUD -->
+    <div class="d-flex align-items-center gap-1 gap-sm-2">
+      <!-- AI Proctoring Real-Time HUD Status Pills -->
+      <div class="d-flex align-items-center gap-1 small me-1 me-sm-2">
+        <span id="hudFaceBadge" class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-1" title="Face tracking status">
+          <i class="bi bi-person-check-fill me-1"></i><span class="d-none d-md-inline">Face OK</span>
+        </span>
+        <span id="hudWarningBadge" class="badge bg-dark text-secondary border border-secondary-subtle px-2 py-1" title="Vision proctoring warnings">
+          0 <span class="d-none d-md-inline">Warnings</span><span class="d-inline d-md-none">Warn</span>
+        </span>
+      </div>
+
+      <!-- Device Hardware Status Pills -->
+      <div class="d-none d-lg-flex align-items-center gap-2">
+        <span id="headerCamStatus" class="device-indicator active" title="Webcam active">
+          <i class="bi bi-camera-video-fill"></i> Cam
+        </span>
+        <span id="headerMicStatus" class="device-indicator active" title="Microphone active">
+          <i class="bi bi-mic-fill"></i> Mic
+        </span>
+      </div>
+    </div>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-4 security-locked assessment-screen" oncopy="return false;" oncut="return false;" onpaste="return false;" oncontextmenu="return false;">
+
+  <!-- Non-Blocking Vision Warning Banner -->
+  <div id="visionAlertBanner" class="alert alert-warning d-none align-items-center justify-content-between py-2 px-3 mb-3 border border-warning shadow-sm" role="alert">
+    <div class="d-flex align-items-center">
+      <i class="bi bi-exclamation-triangle-fill text-warning me-2 fs-5"></i>
+      <span id="visionBannerText" class="fw-semibold small">Proctoring Notice</span>
+    </div>
+    <button type="button" class="btn-close btn-close-white btn-sm" onclick="ProctoringEngine.dismissVisionBanner()"></button>
+  </div>
+
+  <!-- Device Disconnect Alert Banner (hidden by default) -->
+  <div id="deviceAlertBanner" class="alert alert-danger d-none shadow-sm mb-3 border-danger" role="alert">
+    <div class="d-flex align-items-center justify-content-between">
+      <div>
+        <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
+        <strong>Hardware Disconnected:</strong> Camera or microphone feed interrupted. Please restore connection to continue.
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger" id="reconnectDeviceBtn">
+        <i class="bi bi-arrow-repeat me-1"></i> Reconnect
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Main Question Work Area (Col 8/9) -->
+    <div class="col-lg-8 col-xl-9">
+      <div class="card-clean p-4 p-md-5 h-100 d-flex flex-column">
+
+        <!-- Question Meta & Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom border-secondary-subtle gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary bg-opacity-15 text-cyan border border-info border-opacity-25 px-3 py-1 rounded-pill fw-semibold" id="currentSectionBadge">
+              Section
+            </span>
+            <span class="badge bg-dark text-secondary border border-secondary-subtle px-3 py-1 rounded-pill" id="questionCounterBadge">
+              Question 1 of 20
+            </span>
+          </div>
+
+          <div class="d-flex align-items-center gap-2">
+            <!-- Simplified Toolbar: 3 Options, Pure Exam Mode -->
+            <span class="text-muted small"><i class="bi bi-shield-check text-success me-1"></i> Monitored Attempt</span>
+          </div>
+        </div>
+
+        <!-- Question Text -->
+        <div class="mb-4">
+          <h4 class="fw-bold text-white lh-base" id="questionText" style="font-size: 1.25rem;">
+            Loading question...
+          </h4>
+        </div>
+
+        <!-- Three Options Container (A, B, C only) -->
+        <div class="mb-4 flex-grow-1" id="optionsContainer">
+          <!-- Option A -->
+          <label class="option-card" for="optA" data-option="A">
+            <input type="radio" name="assessmentOption" id="optA" value="A">
+            <span class="option-letter-badge">A</span>
+            <span class="option-text" id="textOptA">Option A text</span>
+          </label>
+
+          <!-- Option B -->
+          <label class="option-card" for="optB" data-option="B">
+            <input type="radio" name="assessmentOption" id="optB" value="B">
+            <span class="option-letter-badge">B</span>
+            <span class="option-text" id="textOptB">Option B text</span>
+          </label>
+
+          <!-- Option C -->
+          <label class="option-card" for="optC" data-option="C">
+            <input type="radio" name="assessmentOption" id="optC" value="C">
+            <span class="option-letter-badge">C</span>
+            <span class="option-text" id="textOptC">Option C text</span>
+          </label>
+        </div>
+
+        <!-- Question Navigation Action Buttons -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top border-secondary-subtle mt-auto gap-2 exam-nav-container">
+          <button type="button" id="prevBtn" class="btn btn-secondary-light d-flex align-items-center gap-2 exam-nav-btn" disabled>
+            <i class="bi bi-chevron-left"></i> Previous Question
+          </button>
+
+          <div class="d-flex align-items-center gap-2 exam-action-group">
+            <button type="button" id="nextBtn" class="btn btn-primary d-flex align-items-center gap-2 exam-nav-btn">
+              <span>Next Question</span> <i class="bi bi-chevron-right"></i>
+            </button>
+            <button type="button" id="openSubmitModalBtn" class="btn btn-outline-success fw-semibold px-4 exam-submit-btn">
+              <i class="bi bi-check2-circle me-1"></i> Submit Assessment
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Side Question Palette & Progress (Col 4/3) -->
+    <div class="col-lg-4 col-xl-3">
+      <div class="card-clean p-4 sticky-top" style="top: 90px;">
+
+        <!-- Live AI Proctor Camera Preview inside Sidebar -->
+        <div class="mb-4 pb-3 border-bottom border-secondary-subtle">
+          <div class="position-relative bg-dark bg-opacity-75 rounded-3 overflow-hidden border border-secondary" style="aspect-ratio: 4/3; min-height: 150px;">
+            <video id="sidebarProctorVideo" autoplay playsinline muted class="w-100 h-100 object-fit-cover" style="transform: scaleX(-1); display: block;"></video>
+            <canvas id="sidebarProctorCanvas" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover pointer-events-none" style="z-index: 2;"></canvas>
+            <div class="pip-webcam-badge">
+              <span class="status-dot bg-success me-1"></span> AI REC
+            </div>
+          </div>
+        </div>
+
+        <h6 class="fw-bold text-white mb-3 d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-grid-3x3-gap-fill text-cyan me-2"></i> Question Palette</span>
+          <span class="badge bg-dark text-cyan border border-info border-opacity-25" id="totalAnsweredCount">0/20 Answered</span>
+        </h6>
+
+        <!-- 20 Question Grid -->
+        <div class="question-grid mb-4" id="questionPaletteGrid">
+          {% for i in range(1, 21) %}
+          <button type="button" class="q-btn not-visited" data-order="{{ i }}" id="qbtn-{{ i }}">
+            {{ i }}
+          </button>
+          {% endfor %}
+        </div>
+
+        <!-- Palette Legend -->
+        <div class="border-top border-secondary-subtle pt-3 mb-4">
+          <div class="small fw-bold text-white mb-2">Palette Legend:</div>
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="legend-item">
+                <span class="legend-chip bg-success"></span>
+                <span>Answered</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="legend-item">
+                <span class="legend-chip border border-warning" style="background-color: rgba(245, 158, 11, 0.2);"></span>
+                <span>Unanswered</span>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="legend-item">
+                <span class="legend-chip border border-secondary bg-dark"></span>
+                <span>Not Visited</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Progress Counters -->
+        <div class="border-top border-secondary-subtle pt-3">
+          <div class="small fw-bold text-white mb-2">Section Progress:</div>
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Reasoning (1-5)</span>
+            <span id="secProgReasoning" class="fw-semibold text-white">0/5</span>
+          </div>
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>General Aptitude (6-10)</span>
+            <span id="secProgAptitude" class="fw-semibold text-white">0/5</span>
+          </div>
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Logical Reasoning (11-15)</span>
+            <span id="secProgLogical" class="fw-semibold text-white">0/5</span>
+          </div>
+          <div class="d-flex justify-content-between small text-muted mb-0">
+            <span>English Grammar (16-20)</span>
+            <span id="secProgEnglish" class="fw-semibold text-white">0/5</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 1: Assessment Final Submission Confirmation
+     ========================================================================= -->
+<div class="modal fade" id="submitConfirmModal" tabindex="-1" aria-labelledby="submitConfirmLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border border-secondary shadow-lg">
+      <div class="modal-header border-bottom border-secondary-subtle">
+        <h5 class="modal-title fw-bold text-white" id="submitConfirmLabel">
+          <i class="bi bi-question-circle text-cyan me-2"></i> Submit Assessment?
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted mb-3">Please review your submission summary before finalizing your exam. You cannot change your answers after submission.</p>
+
+        <!-- Summary Grid -->
+        <div class="row g-3 text-center mb-3">
+          <div class="col-6">
+            <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3">
+              <div class="h4 fw-bold text-success mb-0" id="modalAnsweredCount">0</div>
+              <div class="small text-success fw-medium">Answered</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded-3">
+              <div class="h4 fw-bold text-warning mb-0" id="modalUnansweredCount">20</div>
+              <div class="small text-warning fw-medium">Unanswered</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="unansweredWarningNotice" class="alert alert-warning small mb-0 py-2 d-none border border-warning">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> You have unanswered questions remaining.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle">
+        <button type="button" class="btn btn-secondary-light" data-bs-dismiss="modal">Return to Test</button>
+        <button type="button" class="btn btn-primary fw-semibold px-4" id="confirmFinalSubmitBtn">
+          Confirm &amp; Finalize
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 2: Integrity Violation Warning (Strike 1 of 2)
+     ========================================================================= -->
+<div class="modal fade" id="integrityWarningModal" tabindex="-1" aria-labelledby="integrityWarningLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-warning shadow-lg">
+      <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25">
+        <h5 class="modal-title fw-bold text-warning" id="integrityWarningLabel">
+          <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Assessment Integrity Warning (Strike 1 of 2)
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i class="bi bi-shield-slash-fill text-danger fs-1"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2">Screen Switching / Tab Departure Detected</h6>
+        <p class="text-muted small mb-3">
+          Leaving the assessment screen, opening new tabs, or switching applications is strictly prohibited by Datadrix proctoring regulations.
+        </p>
+        <div class="p-3 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 text-danger small fw-semibold mb-0">
+          <i class="bi bi-shield-x me-1"></i> A second detected violation will immediately terminate your exam session, void this attempt, and require a full retake.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-warning fw-bold px-4" id="dismissWarningBtn">
+          I Understand &bull; Return to Exam
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 3: Mobile Phone Detected Alert Modal
+     ========================================================================= -->
+<div class="modal fade" id="phoneWarningModal" tabindex="-1" aria-labelledby="phoneWarningLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-danger shadow-lg" style="background: #131C2E;">
+      <div class="modal-header bg-danger bg-opacity-15 border-bottom border-danger border-opacity-30">
+        <h5 class="modal-title fw-bold text-danger" id="phoneWarningLabel">
+          <i class="bi bi-phone-vibrate-fill me-2"></i> Mobile Phone Detected
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i class="bi bi-phone-slash-fill text-danger fs-1"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2">Unauthorized Device In Camera Area</h6>
+        <p class="text-secondary small mb-3 lh-base" id="phoneWarningModalText">
+          A mobile phone appears to be visible in your camera view. Please remove it from the camera area and continue the assessment without unauthorized assistance.
+        </p>
+        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
+          <i class="bi bi-info-circle me-1"></i> This incident has been logged as a potential policy violation.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-danger fw-bold px-4" data-bs-dismiss="modal">
+          I Have Removed Phone &bull; Continue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 4: Head Movement / Looking Away Alert Modal
+     ========================================================================= -->
+<div class="modal fade" id="headMovementModal" tabindex="-1" aria-labelledby="headMovementModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-warning shadow-lg" style="background: #131C2E;">
+      <div class="modal-header bg-warning bg-opacity-15 border-bottom border-warning border-opacity-30">
+        <h5 class="modal-title fw-bold text-warning" id="headMovementModalLabel">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i> Head Movement Warning
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i id="headMovementIcon" class="bi bi-arrow-left-right text-warning" style="font-size: 3rem;"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2" id="headMovementModalTitle">Candidate Looking Away From Screen</h6>
+        <p class="text-secondary small mb-3 lh-base" id="headMovementModalText">
+          You have turned your face away from the screen for more than 2 seconds. Please keep your face centered inside the camera view and look directly forward at the assessment screen.
+        </p>
+        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
+          <i class="bi bi-info-circle me-1"></i> Turning your head repeatedly away from the screen is recorded as a proctoring violation.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-warning fw-bold px-4" data-bs-dismiss="modal" id="dismissHeadMovementBtn">
+          I Understand &bull; Return to Exam
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 5: Multiple Persons / Another Person Detected Alert Modal
+     ========================================================================= -->
+<div class="modal fade" id="multiplePersonsModal" tabindex="-1" aria-labelledby="multiplePersonsLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-danger shadow-lg" style="background: #131C2E;">
+      <div class="modal-header bg-danger bg-opacity-15 border-bottom border-danger border-opacity-30">
+        <h5 class="modal-title fw-bold text-danger" id="multiplePersonsLabel">
+          <i class="bi bi-people-fill me-2"></i> Multiple Persons Detected
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i class="bi bi-person-x-fill text-danger" style="font-size: 3rem;"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2" id="multiplePersonsModalTitle">Unauthorized Individual In Camera View</h6>
+        <p class="text-secondary small mb-3 lh-base" id="multiplePersonsModalText">
+          Another person was detected in your camera frame. The assessment must be taken alone in a private room without any other individuals present. Unauthorized assistance is strictly prohibited.
+        </p>
+        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
+          <i class="bi bi-info-circle me-1"></i> Multiple individuals in camera view is recorded as an integrity policy violation.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-danger fw-bold px-4" data-bs-dismiss="modal" id="dismissMultiplePersonsBtn">
+          I Understand &bull; Return to Exam
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 6: Face Not Detected Alert Modal
+     ========================================================================= -->
+<div class="modal fade" id="faceMissingModal" tabindex="-1" aria-labelledby="faceMissingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-danger shadow-lg" style="background: #131C2E;">
+      <div class="modal-header bg-danger bg-opacity-15 border-bottom border-danger border-opacity-30">
+        <h5 class="modal-title fw-bold text-danger" id="faceMissingModalLabel">
+          <i class="bi bi-person-x-fill me-2"></i> Face Not Detected
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i class="bi bi-person-bounding-box text-danger" style="font-size: 3rem;"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2">Candidate Face Out of Camera View</h6>
+        <p class="text-secondary small mb-3 lh-base" id="faceMissingModalText">
+          Your face is no longer clearly visible inside the camera frame. Continuous proctoring requires your full face to remain in view at all times during the test.
+        </p>
+        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
+          <i class="bi bi-info-circle me-1"></i> Please re-position your camera, check room lighting, and face the screen.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-danger fw-bold px-4" data-bs-dismiss="modal" id="dismissFaceMissingBtn">
+          I Am Back In Frame &bull; Continue Test
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 7: Eye Gaze Deviation Alert Modal
+     ========================================================================= -->
+<div class="modal fade" id="gazeWarningModal" tabindex="-1" aria-labelledby="gazeWarningModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-warning shadow-lg" style="background: #131C2E;">
+      <div class="modal-header bg-warning bg-opacity-15 border-bottom border-warning border-opacity-30">
+        <h5 class="modal-title fw-bold text-warning" id="gazeWarningModalLabel">
+          <i class="bi bi-eye-slash-fill me-2"></i> Eye Gaze Deviation
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i id="gazeModalIcon" class="bi bi-eye-slash-fill text-warning" style="font-size: 3rem;"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2" id="gazeWarningModalTitle">Looking Away With Eyes Detected</h6>
+        <p class="text-secondary small mb-3 lh-base" id="gazeWarningModalText">
+          Your eye gaze has drifted away from the assessment questions for an extended period. Please maintain your visual focus directly on the exam questions on your monitor.
+        </p>
+        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
+          <i class="bi bi-info-circle me-1"></i> Sustained off-screen gaze tracking is recorded in your proctoring integrity log.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-warning fw-bold px-4" data-bs-dismiss="modal" id="dismissGazeBtn">
+          I Understand &bull; Focus on Screen
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 8: Prohibited Item / Material Alert Modal
+     ========================================================================= -->
+<div class="modal fade" id="prohibitedObjectModal" tabindex="-1" aria-labelledby="prohibitedObjectModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-danger shadow-lg" style="background: #131C2E;">
+      <div class="modal-header bg-danger bg-opacity-15 border-bottom border-danger border-opacity-30">
+        <h5 class="modal-title fw-bold text-danger" id="prohibitedObjectModalLabel">
+          <i class="bi bi-book-half me-2"></i> Prohibited Material Detected
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i class="bi bi-book-half text-danger" style="font-size: 3rem;"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2" id="prohibitedObjectModalTitle">Unauthorized Academic Material</h6>
+        <p class="text-secondary small mb-3 lh-base" id="prohibitedObjectModalText">
+          Prohibited physical materials (such as a book, notepad, or secondary screen) were detected in your camera view. All study aids must be removed immediately.
+        </p>
+        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
+          <i class="bi bi-info-circle me-1"></i> External materials in camera view is recorded as an integrity violation.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-danger fw-bold px-4" data-bs-dismiss="modal" id="dismissProhibitedObjectBtn">
+          I Have Removed Items &bull; Continue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 9: Liveness Verification Alert Modal
+     ========================================================================= -->
+<div class="modal fade" id="livenessWarningModal" tabindex="-1" aria-labelledby="livenessWarningModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-warning shadow-lg" style="background: #131C2E;">
+      <div class="modal-header bg-warning bg-opacity-15 border-bottom border-warning border-opacity-30">
+        <h5 class="modal-title fw-bold text-warning" id="livenessWarningModalLabel">
+          <i class="bi bi-camera-reels-fill me-2"></i> Liveness Verification Warning
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <i class="bi bi-camera-reels-fill text-warning" style="font-size: 3rem;"></i>
+        </div>
+        <h6 class="fw-bold text-white mb-2" id="livenessWarningModalTitle">Camera Feed Motionless / Unresponsive</h6>
+        <p class="text-secondary small mb-3 lh-base" id="livenessWarningModalText">
+          The video feed appears static or frozen with no micro-movement or eye blinks detected for over 25 seconds. Please ensure your webcam is running live.
+        </p>
+        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
+          <i class="bi bi-info-circle me-1"></i> Static photo spoofing or frozen video loops violate assessment policies.
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
+        <button type="button" class="btn btn-warning fw-bold px-4" data-bs-dismiss="modal" id="dismissLivenessBtn">
+          Confirm Live Camera &bull; Continue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pass Backend Data to Client JS safely -->
+<script>
+  window.ASSESSMENT_DATA = {
+    attemptId: "{{ attempt.id }}",
+    remainingSeconds: {{ remaining_seconds }},
+    questions: {{ questions | tojson | safe }}
+  };
+</script>
+{% endblock %}
+
+{% block footer %}
+<!-- Hidden footer in assessment for distraction-free exam mode -->
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- MediaPipe Tasks Vision Module Loader -->
+<script type="module">
+  import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+  window.MediaPipeVision = { FilesetResolver, FaceLandmarker };
+  window.dispatchEvent(new CustomEvent("mediapipe-vision-loaded"));
+</script>
+
+<!-- TensorFlow.js & COCO-SSD for Mobile Phone Detection -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
+<!-- AI Proctoring Vision Modules -->
+<script src="{{ url_for('static', filename='js/proctoring/head_pose.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/proctoring/phone_detector.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/proctoring/proctoring_engine.js') }}?v=4.0"></script>
+
+<!-- Security, Timer, Integrity & Assessment Core Scripts -->
+<script src="{{ url_for('static', filename='js/security_lock.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/timer.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/integrity.js') }}?v=4.0"></script>
+<script src="{{ url_for('static', filename='js/assessment.js') }}?v=4.0"></script>
+{% endblock %}

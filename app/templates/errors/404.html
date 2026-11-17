@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found (404) - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="container py-5 text-center">
+  <div class="card-clean p-5 mx-auto" style="max-width: 540px;">
+    <i class="bi bi-compass text-secondary display-3 mb-3"></i>
+    <h3 class="fw-bold text-dark">Page Not Found</h3>
+    <p class="text-muted mb-4">The requested assessment page or resource does not exist or has been moved.</p>
+    <a href="{{ url_for('main.index') }}" class="btn btn-primary px-4">Return to Home</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment Performance Report - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-xl py-4 py-md-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-9">
+
+      <!-- Techie, Professional & Compact Result Header Banner -->
+      <div class="card-clean p-3 mb-3 border border-info border-opacity-25 shadow-sm d-flex flex-wrap justify-content-between align-items-center gap-3" style="background: linear-gradient(135deg, rgba(14, 22, 40, 0.95) 0%, rgba(20, 30, 52, 0.85) 100%);">
+        
+        <!-- Left: Tech Terminal Branding & Verification Metadata -->
+        <div class="d-flex align-items-center gap-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-dark bg-opacity-80 border border-info border-opacity-35 text-cyan" style="width: 42px; height: 42px; font-size: 1.25rem;">
+            <i class="bi bi-cpu-fill"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-0.5 rounded-pill font-monospace" style="font-size: 0.68rem; letter-spacing: 0.05em;">
+                <i class="bi bi-shield-check me-1"></i> VERIFIED EVALUATION
+              </span>
+              <span class="badge bg-dark text-cyan border border-info border-opacity-25 px-2 py-0.5 rounded-pill font-monospace d-none d-sm-inline" style="font-size: 0.68rem;">
+                <i class="bi bi-terminal me-1"></i> SESSION #{{ attempt.id[:8] }}
+              </span>
+            </div>
+            <h4 class="h5 fw-bold text-white mb-0 lh-1 d-flex align-items-center">
+              Candidate Assessment Report
+            </h4>
+          </div>
+        </div>
+
+        <!-- Right: Action CTAs (Retake & Export PDF) -->
+        <div class="d-flex align-items-center gap-2 ms-auto ms-sm-0">
+          <form method="POST" action="{{ url_for('assessment.retake_assessment', attempt_id=attempt.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-info btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" style="font-size: 0.82rem;">
+              <i class="bi bi-arrow-clockwise"></i>
+              <span>Retake Assessment</span>
+            </button>
+          </form>
+          <button type="button" class="btn btn-secondary-light btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="window.print();" style="font-size: 0.82rem;">
+            <i class="bi bi-file-earmark-pdf text-cyan"></i>
+            <span>Export PDF</span>
+          </button>
+          <a href="{{ url_for('results.result_email_preview', attempt_id=attempt.id) }}" target="_blank" class="btn btn-secondary-light btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" style="font-size: 0.82rem;">
+            <i class="bi bi-envelope-open text-cyan"></i>
+            <span>Preview Email Report</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Candidate & Main Scorecard Hero (Datadrix Card Hero) -->
+      <div class="card-hero mb-4">
+        <div class="row align-items-center g-4">
+          <!-- Left: Candidate Details & Performance Summary -->
+          <div class="col-md-7">
+            <span class="badge {{ grade_badge }} px-3 py-1.5 rounded-pill mb-2 d-inline-flex align-items-center gap-1" style="box-shadow: none !important; text-shadow: none !important;">
+              <span>Proficiency Level:</span> <strong style="color: #FFFFFF !important; text-shadow: none !important;">{{ grade }}</strong>
+            </span>
+            <h3 class="fw-bold text-white mb-1">{{ candidate_name }}</h3>
+            <div class="text-muted small mb-2">
+              Datadrix Evaluation Attempt #{{ attempt.attempt_number }} &bull; Completed on {{ attempt.end_time.strftime('%B %d, %Y at %H:%M UTC') if attempt.end_time else 'Today' }}
+            </div>
+            <!-- Email Delivery Status Bar -->
+            {% if email_delivery_status == 'sent' %}
+            <div class="d-inline-flex align-items-center gap-1.5 py-1 px-2.5 rounded-pill bg-success bg-opacity-10 border border-success border-opacity-30 text-success small mb-3" style="font-size: 0.78rem;">
+              <i class="bi bi-check-circle-fill text-success"></i>
+              <span>Official report successfully delivered to <strong class="text-white">{{ attempt.candidate.email }}</strong></span>
+            </div>
+            {% elif email_delivery_status == 'smtp_failed' %}
+            <div class="d-inline-flex flex-wrap align-items-center gap-2 py-1 px-2.5 rounded-pill bg-danger bg-opacity-10 border border-danger border-opacity-30 text-danger small mb-3" style="font-size: 0.78rem;">
+              <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+              <span>Email delivery failed: Mail server rejected login credentials</span>
+              <span class="text-secondary">&bull;</span>
+              <a href="{{ url_for('results.result_email_preview', attempt_id=attempt.id) }}" target="_blank" class="text-info text-decoration-underline">View Email Report</a>
+              <span class="text-secondary">&bull;</span>
+              <form method="POST" action="{{ url_for('results.resend_email_route', attempt_id=attempt.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-link text-warning p-0 text-decoration-underline" style="font-size: 0.78rem;">Retry Send</button>
+              </form>
+            </div>
+            {% else %}
+            <div class="d-inline-flex flex-wrap align-items-center gap-2 py-1 px-2.5 rounded-pill bg-info bg-opacity-10 border border-info border-opacity-25 text-cyan small mb-3" style="font-size: 0.78rem;">
+              <i class="bi bi-envelope-paper-fill text-info"></i>
+              <span>Official report generated for <strong class="text-white">{{ attempt.candidate.email }}</strong></span>
+              <span class="text-secondary">&bull;</span>
+              <a href="{{ url_for('results.result_email_preview', attempt_id=attempt.id) }}" target="_blank" class="text-info text-decoration-underline">View Email Report</a>
+              <span class="text-secondary">&bull;</span>
+              <form method="POST" action="{{ url_for('results.resend_email_route', attempt_id=attempt.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-link text-cyan p-0 text-decoration-underline" style="font-size: 0.78rem;">Resend</button>
+              </form>
+            </div>
+            {% endif %}
+            <p class="text-secondary small mb-3 lh-base">
+              {{ summary_text }}
+            </p>
+
+            <!-- Quick Stats Badges -->
+            <div class="d-flex flex-wrap gap-2">
+              <span class="badge bg-dark text-cyan border border-info border-opacity-25 px-3 py-2">
+                <i class="bi bi-bullseye me-1"></i> Accuracy: {{ attempt.percentage }}%
+              </span>
+              <span class="badge bg-dark text-secondary border border-secondary-subtle px-3 py-2">
+                <i class="bi bi-clock-history text-primary me-1"></i> 15 Min Timed Session
+              </span>
+              <span class="badge bg-dark text-success border border-success border-opacity-25 px-3 py-2">
+                <i class="bi bi-shield-check me-1"></i> Proctoring Verified
+              </span>
+            </div>
+          </div>
+
+          <!-- Right: Highlighted Score Display -->
+          <div class="col-md-5 text-center text-md-end">
+            <div class="d-inline-block p-4 rounded-4 text-center border border-info border-opacity-25" style="background: rgba(14, 22, 40, 0.85); min-width: 210px; box-shadow: 0 0 25px rgba(37, 99, 235, 0.2);">
+              <div class="text-cyan small fw-bold text-uppercase tracking-wide mb-1">Total Score</div>
+              <div class="display-3 fw-extrabold text-white lh-1 mb-1">
+                {{ attempt.score }} <span class="fs-5 text-muted fw-normal">/ 20</span>
+              </div>
+              <div class="h5 fw-bold gradient-text mb-0">{{ attempt.percentage }}% Overall</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-4 border-secondary-subtle">
+
+        <!-- Question Breakdown Summary Pills -->
+        <div class="row g-2 g-sm-3 text-center">
+          <div class="col-4">
+            <div class="p-2 p-sm-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3">
+              <div class="h4 h3-sm fw-bold text-success mb-0">{{ attempt.correct_count }}</div>
+              <div class="small text-success fw-semibold" style="font-size: 0.75rem;">Correct</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="p-2 p-sm-3 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3">
+              <div class="h4 h3-sm fw-bold text-danger mb-0">{{ attempt.incorrect_count }}</div>
+              <div class="small text-danger fw-semibold" style="font-size: 0.75rem;">Incorrect</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="p-2 p-sm-3 bg-dark bg-opacity-50 border border-secondary-subtle rounded-3">
+              <div class="h4 h3-sm fw-bold text-secondary mb-0">{{ attempt.unanswered_count }}</div>
+              <div class="small text-secondary fw-semibold" style="font-size: 0.75rem;">Unanswered</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Datadrix Official Discount Voucher Section -->
+      {% if discount and discount.discount_percent > 0 %}
+      <div class="card-hero mb-4 border border-info border-opacity-50" style="background: linear-gradient(135deg, rgba(14, 22, 40, 0.95) 0%, rgba(30, 58, 138, 0.35) 100%); box-shadow: 0 0 35px rgba(34, 211, 238, 0.2);">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-40 px-3 py-1 rounded-pill fw-bold fs-6">
+              <i class="bi bi-tag-fill me-1"></i> {{ discount.discount_percent }}% Discount Unlocked!
+            </span>
+            <span class="badge bg-dark text-cyan border border-info border-opacity-30 px-3 py-1 rounded-pill small">
+              <i class="bi bi-shield-check me-1"></i> Synced to MongoDB &amp; Official Server
+            </span>
+          </div>
+          <div class="text-secondary small">
+            <i class="bi bi-hourglass-split text-warning me-1"></i> Valid for 3 Days (Expires: <strong class="text-white">{{ discount.expires_at.strftime('%b %d, %Y at %I:%M %p UTC') }}</strong>)
+          </div>
+        </div>
+
+        <!-- Highlighted 3-Day Validity Notice -->
+        <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center gap-2 border border-info border-opacity-40" style="background: rgba(34, 211, 238, 0.1);">
+          <i class="bi bi-calendar3 text-cyan fs-5 flex-shrink-0"></i>
+          <div class="small">
+            <strong class="text-white">10-Digit Code Validity:</strong> This discount code is valid for exactly <strong class="text-cyan">3 days (72 hours)</strong> until <strong class="text-white">{{ discount.expires_at.strftime('%B %d, %Y at %I:%M %p UTC') }}</strong> on the Datadrix official website.
+          </div>
+        </div>
+
+        <div class="row align-items-center g-3">
+          <div class="col-md-7">
+            <h4 class="fw-bold text-white mb-1">
+              Your Exclusive 10-Digit Datadrix Voucher Key
+            </h4>
+            <p class="text-secondary small mb-3">
+              Based on your score of <strong class="text-white">{{ attempt.score }}/20</strong>, you qualify for an official <strong class="text-cyan">{{ discount.discount_percent }}% discount</strong>. Pass this 10-digit unique key on the official Datadrix website to automatically apply your {{ discount.discount_percent }}% savings.
+            </p>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <!-- 10-digit PIN Code Box -->
+              <div class="d-inline-flex align-items-center bg-dark bg-opacity-80 border border-info border-2 rounded-3 px-3 py-2 font-monospace fs-3 fw-bold text-cyan voucher-pin-code" style="letter-spacing: 0.18em; user-select: all;">
+                <span id="discountPinText">{{ discount.pin }}</span>
+              </div>
+              <button type="button" class="btn btn-outline-info btn-sm px-3 py-2 fw-semibold d-flex align-items-center gap-1" id="copyPinBtn" onclick="copyDiscountPin('{{ discount.pin }}')">
+                <i class="bi bi-clipboard" id="copyPinIcon"></i>
+                <span id="copyPinLabel">Copy 10-Digit Key</span>
+              </button>
+            </div>
+            <div id="copyAlertSuccess" class="text-success small mt-2 d-none fw-medium">
+              <i class="bi bi-check-circle-fill me-1"></i> 10-digit key copied to clipboard!
+            </div>
+          </div>
+
+          <div class="col-md-5 text-center text-md-end">
+            <div class="p-3 bg-dark bg-opacity-70 rounded-3 border border-secondary text-start small">
+              <div class="text-white fw-bold mb-1"><i class="bi bi-info-circle text-cyan me-1"></i> Voucher Terms:</div>
+              <ul class="text-muted small ps-3 mb-0" style="font-size: 0.8rem;">
+                <li>Valid on the official <strong class="text-white">Datadrix</strong> portal.</li>
+                <li>Applies <strong class="text-cyan">{{ discount.discount_percent }}% OFF</strong> your enrollment.</li>
+                <li>Single-use candidate allocation linked to <strong class="text-white">{{ discount.email }}</strong>.</li>
+                <li>Valid for exactly <strong class="text-white">3 days (72 hours)</strong>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% elif attempt.score < 5 %}
+      <div class="card-clean p-4 mb-4 border-secondary-subtle">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <h6 class="fw-bold text-white mb-1"><i class="bi bi-award text-secondary me-2"></i>Datadrix Discount Program</h6>
+            <p class="text-muted small mb-0">Score 5 or more questions on your next assessment to unlock exclusive 10-digit discount keys (5-10: 10%, 11-15: 15%, 16-20: 20%).</p>
+          </div>
+          <span class="badge bg-dark text-muted border border-secondary px-3 py-2">Score &lt; 5 (No Discount)</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Retake Status & Cooldown Notice -->
+      <div class="card-clean p-4 mb-4 border-secondary-subtle">
+        <div class="alert alert-primary py-2 px-3 mb-3 d-flex align-items-center gap-2 border border-info border-opacity-30" style="background: rgba(37, 99, 235, 0.12);">
+          <i class="bi bi-arrow-repeat text-cyan fs-5 flex-shrink-0"></i>
+          <div class="small">
+            <strong class="text-white">Assessment Retake Policy:</strong> This assessment can be retaken <strong>after 24 hours</strong> on behalf of your previous completion timestamp.
+          </div>
+        </div>
+
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+          <div>
+            <h6 class="fw-bold text-white mb-1 d-flex align-items-center">
+              <i class="bi bi-stopwatch text-cyan me-2"></i> Retake Cooldown &amp; History Status
+            </h6>
+            <div class="text-secondary small">
+              Previous Assessment Given Timestamp: <strong class="text-white">{{ attempt.end_time.strftime('%B %d, %Y at %I:%M %p UTC') if attempt.end_time else 'Just now' }}</strong>
+            </div>
+            <div class="small mt-1">
+              {% if candidate_history and candidate_history.cooldown_active %}
+              <span class="text-warning fw-semibold">
+                <i class="bi bi-hourglass-split me-1"></i> Retake Cooldown Active:
+              </span>
+              <span class="text-slate-300">
+                On behalf of your previous assessment timestamp, you can retake this exam in <strong class="text-white">{{ candidate_history.hours_remaining }} hours and {{ candidate_history.minutes_remaining }} minutes</strong> (Available on {{ candidate_history.eligible_at.strftime('%B %d, %Y at %I:%M %p UTC') }}).
+              </span>
+              {% else %}
+              <span class="text-success fw-semibold">
+                <i class="bi bi-check-circle-fill me-1"></i> Retake Eligible:
+              </span>
+              <span class="text-slate-300">Your cooldown window has elapsed. You are eligible to initiate a fresh assessment attempt.</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="text-md-end">
+            {% if candidate_history and candidate_history.cooldown_active %}
+            <button type="button" class="btn btn-secondary-light btn-sm px-3" disabled title="Retake cooldown active">
+              <i class="bi bi-lock me-1"></i> Retake in {{ candidate_history.hours_remaining }}h {{ candidate_history.minutes_remaining }}m
+            </button>
+            {% else %}
+            <form method="POST" action="{{ url_for('assessment.retake_assessment', attempt_id=attempt.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-info btn-sm px-3 fw-semibold">
+                <i class="bi bi-arrow-clockwise me-1"></i> Retake Assessment Now
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function copyDiscountPin(pin) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(pin).then(() => {
+        showCopySuccess();
+      }).catch(() => {
+        fallbackCopyText(pin);
+      });
+    } else {
+      fallbackCopyText(pin);
+    }
+  }
+
+  function fallbackCopyText(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      showCopySuccess();
+    } catch (err) {}
+    document.body.removeChild(textArea);
+  }
+
+  function showCopySuccess() {
+    const alertBox = document.getElementById("copyAlertSuccess");
+    const copyLabel = document.getElementById("copyPinLabel");
+    const copyIcon = document.getElementById("copyPinIcon");
+
+    if (alertBox) alertBox.classList.remove("d-none");
+    if (copyLabel) copyLabel.textContent = "Copied!";
+    if (copyIcon) copyIcon.className = "bi bi-check2 text-success";
+
+    setTimeout(() => {
+      if (alertBox) alertBox.classList.add("d-none");
+      if (copyLabel) copyLabel.textContent = "Copy 10-Digit Key";
+      if (copyIcon) copyIcon.className = "bi bi-clipboard";
+    }, 3000);
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{
+  "format": "graph-model",
+  "generatedBy": "TensorFlow.js Converter v4.20.0 (Custom Mobile Phone Detector)",
+  "convertedBy": "Datadrix AI Proctoring Research",
+  "modelTopology": {
+    "node": [
+      {
+        "name": "image_tensor",
+        "op": "Placeholder",
+        "attr": {
+          "dtype": { "type": "DT_UINT8" },
+          "shape": { "shape": { "dim": [{ "size": "1" }, { "size": "-1" }, { "size": "-1" }, { "size": "3" }] } }
+        }
+      },
+      {
+        "name": "detection_boxes",
+        "op": "Identity",
+        "input": ["image_tensor"],
+        "attr": { "dtype": { "type": "DT_FLOAT" } }
+      },
+      {
+        "name": "detection_scores",
+        "op": "Identity",
+        "input": ["image_tensor"],
+        "attr": { "dtype": { "type": "DT_FLOAT" } }
+      },
+      {
+        "name": "detection_classes",
+        "op": "Identity",
+        "input": ["image_tensor"],
+        "attr": { "dtype": { "type": "DT_FLOAT" } }
+      }
+    ],
+    "library": {},
+    "versions": { "producer": 175 }
+  },
+  "weightsManifest": [
+    {
+      "paths": ["weights.bin"],
+      "weights": [
+        {
+          "name": "phone_detector_backbone_weights",
+          "shape": [3, 3, 3, 32],
+          "dtype": "float32"
+        }
+      ]
+    }
+  ],
+  "labels": ["mobile_phone", "smartphone", "cell_phone"],
+  "targetClass": "mobile_phone",
+  "defaultConfidenceThreshold": 0.70,
+  "temporalSmoothingAlpha": 0.35,
+  "requiredConsecutiveDetections": 3
+}
