@@ -92,6 +92,7 @@ def get_candidate_assessment_payload(attempt):
         q = aq.question
         questions_list.append({
             "order": aq.question_order,
+            "code": q.code,
             "section": q.section,
             "question_text": q.question_text,
             "options": {

@@ -209,16 +209,23 @@ const AssessmentApp = (() => {
         confirmFinalSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Finalizing...';
       }
 
+      const answersPayload = (questions || []).map(q => ({
+        order: q.order,
+        code: q.code || "",
+        selected_option: q.selected_option || null
+      }));
+
       const resp = await fetch(`/api/assessment/${attemptId}/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-CSRFToken": csrfToken
-        }
+        },
+        body: JSON.stringify({ answers: answersPayload })
       });
 
       const data = await resp.json();
-      if (data.redirect_url) {
+      if (data && data.redirect_url) {
         window.location.href = data.redirect_url;
       } else {
         window.location.href = `/result/${attemptId}`;

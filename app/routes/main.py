@@ -99,6 +99,7 @@ def register():
         session["candidate_id"] = candidate.id
         session["candidate_name"] = candidate.full_name
         session["candidate_email"] = candidate.email
+        session["candidate_phone"] = candidate.mobile_number
         session.permanent = True
 
         return redirect(url_for("main.device_check"))

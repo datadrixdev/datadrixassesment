@@ -14,6 +14,10 @@ def verify_candidate_attempt(attempt_id):
 
     attempt = db.session.get(AssessmentAttempt, attempt_id)
     if not attempt:
+        from app.services.rehydration_service import rehydrate_attempt_if_needed
+        attempt = rehydrate_attempt_if_needed(attempt_id)
+
+    if not attempt:
         abort(404)
 
     if attempt.candidate_id != candidate_id:
@@ -36,11 +40,8 @@ def result_view(attempt_id):
         return redirect(url_for("results.aborted_view", attempt_id=attempt.id))
 
     if attempt.status == "in_progress":
-        # Check if expired
-        if check_and_enforce_timer(attempt):
-            pass
-        else:
-            return redirect(url_for("assessment.assessment_view", attempt_id=attempt.id))
+        from app.services.scoring_service import finalize_and_score_attempt
+        finalize_and_score_attempt(attempt.id)
 
     section_scores = get_section_scores(attempt)
 

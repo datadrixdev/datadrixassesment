@@ -22,6 +22,10 @@ def verify_candidate_attempt(attempt_id):
 
     attempt = db.session.get(AssessmentAttempt, attempt_id)
     if not attempt:
+        from app.services.rehydration_service import rehydrate_attempt_if_needed
+        attempt = rehydrate_attempt_if_needed(attempt_id)
+
+    if not attempt:
         return None, (jsonify({"error": "Assessment attempt not found."}), 404)
 
     if attempt.candidate_id != candidate_id:
@@ -90,7 +94,13 @@ def start_assessment():
     db.session.commit()
 
     # Generate 5 questions per section (20 total)
-    generate_questions_for_attempt(attempt, questions_per_section=5)
+    attempt_questions = generate_questions_for_attempt(attempt, questions_per_section=5)
+
+    # Store assigned questions and attempt metadata in session for serverless resilience
+    session["assigned_question_codes"] = [aq.question.code for aq in attempt_questions]
+    session["attempt_id"] = attempt.id
+    session["attempt_number"] = attempt.attempt_number
+    session.permanent = True
 
     # Log session start
     event = AssessmentEvent(
@@ -235,15 +245,45 @@ def receive_proctoring_event(attempt_id):
 @assessment_bp.route("/api/assessment/<attempt_id>/submit", methods=["POST"])
 def submit_assessment(attempt_id):
     """Finalize the assessment, score answers, and return result redirect."""
-    attempt, err = verify_candidate_attempt(attempt_id)
-    if err:
-        return err
+    raw_payload = request.get_json(silent=True) or {}
+    answers_payload = raw_payload.get("answers", [])
+
+    from app.services.rehydration_service import rehydrate_attempt_if_needed, _apply_answers_payload
+    attempt = db.session.get(AssessmentAttempt, attempt_id)
+    if not attempt:
+        attempt = rehydrate_attempt_if_needed(attempt_id, answers_payload)
+    elif answers_payload:
+        _apply_answers_payload(attempt, answers_payload)
+
+    if not attempt:
+        return jsonify({"error": "Assessment attempt not found.", "redirect_url": f"/result/{attempt_id}"}), 404
+
+    candidate_id = session.get("candidate_id")
+    if candidate_id and attempt.candidate_id != candidate_id:
+        return jsonify({"error": "Forbidden: You do not have permission to submit this attempt."}), 403
 
     if attempt.status == "aborted":
         return jsonify({"error": "Aborted attempts cannot be submitted.", "redirect_url": f"/aborted/{attempt.id}"}), 400
 
+    # Save answers to session so subsequent container cold-starts can rehydrate
+    if answers_payload:
+        session["candidate_answers"] = answers_payload
+
     # Finalize and score
     scored_attempt = finalize_and_score_attempt(attempt.id)
+
+    # Cache scored state in session
+    session["completed_attempt_id"] = scored_attempt.id
+    session["attempt_score"] = scored_attempt.score
+    session["attempt_max_score"] = scored_attempt.max_score
+    session["attempt_status"] = "completed"
+
+    from app.models.discount import CandidateDiscount
+    discount = CandidateDiscount.query.filter_by(attempt_id=scored_attempt.id).first()
+    if discount:
+        session["discount_pin"] = discount.pin
+        session["discount_percent"] = discount.discount_percent
+    session.permanent = True
 
     return jsonify({
         "success": True,
