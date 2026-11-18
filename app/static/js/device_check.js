@@ -323,7 +323,8 @@ document.addEventListener("DOMContentLoaded", () => {
       clearInterval(visionCalibrationLoop);
       visionCalibrationLoop = null;
     }
-    if (document.documentElement.requestFullscreen) {
+    const isEmbedded = (window.self !== window.top) || (window.location.search.indexOf("embed=1") !== -1);
+    if (!isEmbedded && document.documentElement.requestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
   });

@@ -84,21 +84,25 @@ const IntegrityMonitor = (() => {
   }
 
   function setupScreenSwitchDetection() {
+    const isEmbedded = (window.self !== window.top) || (window.location.search.indexOf("embed=1") !== -1);
+
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         reportViolation("tab_switch", { details: "Page visibility hidden" });
       }
     });
 
-    window.addEventListener("blur", () => {
-      reportViolation("window_blur", { details: "Window blur detected" });
-    });
+    if (!isEmbedded) {
+      window.addEventListener("blur", () => {
+        reportViolation("window_blur", { details: "Window blur detected" });
+      });
 
-    document.addEventListener("fullscreenchange", () => {
-      if (!document.fullscreenElement) {
-        reportViolation("fullscreen_exit", { details: "Exited fullscreen mode" });
-      }
-    });
+      document.addEventListener("fullscreenchange", () => {
+        if (!document.fullscreenElement) {
+          reportViolation("fullscreen_exit", { details: "Exited fullscreen mode" });
+        }
+      });
+    }
 
     window.addEventListener("beforeunload", (e) => {
       e.preventDefault();

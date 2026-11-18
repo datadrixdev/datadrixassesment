@@ -120,6 +120,22 @@ def device_check():
         return redirect(url_for("main.index"))
 
     candidate = db.session.get(Candidate, candidate_id)
+    if not candidate and session.get("candidate_email"):
+        candidate = Candidate.query.filter_by(email=session.get("candidate_email", "")).first()
+    if not candidate and session.get("candidate_email"):
+        candidate = Candidate(
+            id=candidate_id,
+            full_name=session.get("candidate_name", "Candidate"),
+            email=session.get("candidate_email", ""),
+            mobile_number=session.get("candidate_phone", "")
+        )
+        db.session.add(candidate)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            candidate = Candidate.query.filter_by(email=session.get("candidate_email", "")).first()
+
     if not candidate:
         session.clear()
         return redirect(url_for("main.index"))
