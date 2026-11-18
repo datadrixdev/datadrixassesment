@@ -142,9 +142,11 @@ const AssessmentApp = (() => {
       });
 
       if (!resp.ok) {
-        const errData = await resp.json();
-        if (errData.expired) {
-          submitExam(true);
+        const errData = await resp.json().catch(() => ({}));
+        if (errData && errData.expired) {
+          if (typeof ExamTimer !== "undefined" && ExamTimer.getRemainingSeconds() <= 5) {
+            submitExam(true);
+          }
         }
       }
     } catch (e) {

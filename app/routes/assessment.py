@@ -116,6 +116,21 @@ def start_assessment():
     session["assigned_question_codes"] = [aq.question.code for aq in attempt_questions]
     session["attempt_id"] = attempt.id
     session["attempt_number"] = attempt.attempt_number
+    session["attempt_start_time"] = now.timestamp()
+    session["attempt_deadline"] = deadline.timestamp()
+    session["duration_minutes"] = duration_min
+    session["attempt_status"] = "in_progress"
+
+    # Reset any previous attempt completion states to guarantee cold-start hygiene
+    session.pop("candidate_answers", None)
+    session.pop("completed_attempt_id", None)
+    session.pop("attempt_score", None)
+    session.pop("attempt_max_score", None)
+    session.pop("attempt_correct_count", None)
+    session.pop("attempt_incorrect_count", None)
+    session.pop("attempt_unanswered_count", None)
+    session.pop("discount_pin", None)
+    session.pop("discount_percent", None)
     session.permanent = True
 
     # Log session start
@@ -195,6 +210,27 @@ def save_answer(attempt_id):
         aq.is_marked_for_review = bool(is_marked_for_review)
 
     db.session.commit()
+
+    # Synchronize session answers cache so ephemeral serverless containers preserve progress
+    cached_answers = session.get("candidate_answers") or []
+    if not isinstance(cached_answers, list):
+        cached_answers = []
+    found = False
+    for item in cached_answers:
+        if item.get("order") == order:
+            item["selected_option"] = aq.selected_option
+            item["is_marked_for_review"] = aq.is_marked_for_review
+            found = True
+            break
+    if not found:
+        cached_answers.append({
+            "order": order,
+            "selected_option": aq.selected_option,
+            "is_marked_for_review": aq.is_marked_for_review
+        })
+    session["candidate_answers"] = cached_answers
+    session["attempt_status"] = "in_progress"
+    session.permanent = True
 
     return jsonify({
         "success": True,
@@ -365,7 +401,28 @@ def retake_assessment(attempt_id):
     db.session.add(new_attempt)
     db.session.commit()
 
-    generate_questions_for_attempt(new_attempt, questions_per_section=5)
+    new_questions = generate_questions_for_attempt(new_attempt, questions_per_section=5)
+
+    # Store fresh assigned questions and attempt metadata in session for serverless resilience
+    session["assigned_question_codes"] = [aq.question.code for aq in new_questions]
+    session["attempt_id"] = new_attempt.id
+    session["attempt_number"] = new_attempt.attempt_number
+    session["attempt_start_time"] = now.timestamp()
+    session["attempt_deadline"] = deadline.timestamp()
+    session["duration_minutes"] = duration_min
+    session["attempt_status"] = "in_progress"
+
+    # Reset any previous attempt completion states to guarantee cold-start hygiene
+    session.pop("candidate_answers", None)
+    session.pop("completed_attempt_id", None)
+    session.pop("attempt_score", None)
+    session.pop("attempt_max_score", None)
+    session.pop("attempt_correct_count", None)
+    session.pop("attempt_incorrect_count", None)
+    session.pop("attempt_unanswered_count", None)
+    session.pop("discount_pin", None)
+    session.pop("discount_percent", None)
+    session.permanent = True
 
     event = AssessmentEvent(
         attempt_id=new_attempt.id,

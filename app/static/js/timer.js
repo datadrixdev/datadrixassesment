@@ -88,12 +88,35 @@ const ExamTimer = (() => {
       });
       if (resp.ok) {
         const data = await resp.json();
-        if (data.expired || data.status === "completed" || data.status === "aborted") {
+        
+        // Integrity strike violation termination
+        if (data.status === "aborted") {
           handleTimeExpired();
+          return;
+        }
+
+        if (data.expired) {
+          // If server reports expired, check whether server remaining_seconds is positive
+          if (typeof data.remaining_seconds === "number" && data.remaining_seconds > 0) {
+            remainingSeconds = data.remaining_seconds;
+            updateVisualState();
+          } else if (remainingSeconds <= 10) {
+            handleTimeExpired();
+          } else {
+            console.warn("Server reported expired unexpectedly while local timer has " + remainingSeconds + "s remaining. Ignoring transient cold-start anomaly.");
+          }
+        } else if (data.status === "completed") {
+          // Only auto-expire if client clock has actually run down
+          if (remainingSeconds <= 5) {
+            handleTimeExpired();
+          }
         } else if (typeof data.remaining_seconds === "number") {
           // Resync client clock with authoritative server seconds
-          remainingSeconds = data.remaining_seconds;
-          updateVisualState();
+          // Smooth sync: only adjust if drift is greater than 3 seconds
+          if (Math.abs(remainingSeconds - data.remaining_seconds) > 3) {
+            remainingSeconds = data.remaining_seconds;
+            updateVisualState();
+          }
         }
       }
     } catch (e) {

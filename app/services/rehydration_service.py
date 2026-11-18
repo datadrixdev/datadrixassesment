@@ -91,19 +91,50 @@ def rehydrate_attempt_if_needed(attempt_id, answers_payload=None):
     # 4. Reconstruct Attempt
     now = utc_now()
     duration_min = current_app.config.get("ASSESSMENT_DURATION_MINUTES", 15) if current_app else 15
-    attempt_status = session.get("attempt_status", "in_progress")
-    corr = session.get("attempt_correct_count", 0)
-    incorr = session.get("attempt_incorrect_count", 0)
-    unans = session.get("attempt_unanswered_count", 20)
-    score = session.get("attempt_score", corr)
-    max_score = session.get("attempt_max_score", 20)
+
+    start_ts = session.get("attempt_start_time")
+    deadline_ts = session.get("attempt_deadline")
+
+    if deadline_ts and isinstance(deadline_ts, (int, float)):
+        deadline = datetime.fromtimestamp(deadline_ts, tz=timezone.utc)
+    else:
+        deadline = now + timedelta(minutes=duration_min)
+        session["attempt_deadline"] = deadline.timestamp()
+
+    if start_ts and isinstance(start_ts, (int, float)):
+        start_time = datetime.fromtimestamp(start_ts, tz=timezone.utc)
+    else:
+        start_time = deadline - timedelta(minutes=duration_min)
+        session["attempt_start_time"] = start_time.timestamp()
+
+    # Determine attempt_status carefully:
+    # An attempt is ONLY 'completed' if this specific attempt was explicitly completed,
+    # OR if the authoritative deadline has passed.
+    is_explicitly_completed = (session.get("completed_attempt_id") == attempt_id)
+    if is_explicitly_completed or now >= deadline:
+        attempt_status = "completed"
+    else:
+        attempt_status = "in_progress"
+
+    if attempt_status == "completed":
+        corr = session.get("attempt_correct_count", 0)
+        incorr = session.get("attempt_incorrect_count", 0)
+        unans = session.get("attempt_unanswered_count", 20)
+        score = session.get("attempt_score", corr)
+        max_score = session.get("attempt_max_score", 20)
+    else:
+        corr = 0
+        incorr = 0
+        unans = 20
+        score = 0
+        max_score = 20
 
     attempt = AssessmentAttempt(
         id=attempt_id,
         candidate_id=candidate.id if candidate else candidate_id,
         attempt_number=session.get("attempt_number", 1),
-        start_time=now - timedelta(minutes=15),
-        deadline=now + timedelta(minutes=duration_min),
+        start_time=start_time,
+        deadline=deadline,
         end_time=now if attempt_status == "completed" else None,
         status=attempt_status,
         score=score,
@@ -123,25 +154,25 @@ def rehydrate_attempt_if_needed(attempt_id, answers_payload=None):
         if not attempt:
             return None
 
-    # 5. Populate AttemptQuestions
-    if not answers_payload:
-        answers_payload = session.get("candidate_answers")
-
-    if answers_payload and isinstance(answers_payload, list):
-        _apply_answers_payload(attempt, answers_payload)
-    elif session.get("assigned_question_codes"):
-        # Recreate assigned questions from session codes
+    # 5. Populate AttemptQuestions: ensure all 20 questions are restored in exact order
+    if session.get("assigned_question_codes"):
         codes = session.get("assigned_question_codes", [])
         for order, code in enumerate(codes, start=1):
-            q = Question.query.filter_by(code=code).first()
-            if q:
-                aq = AttemptQuestion(
-                    attempt_id=attempt.id,
-                    question_id=q.id,
-                    question_order=order,
-                    selected_option=None
-                )
-                db.session.add(aq)
+            aq = AttemptQuestion.query.filter_by(attempt_id=attempt.id, question_order=order).first()
+            if not aq:
+                q = Question.query.filter_by(code=code).first()
+                if q:
+                    aq = AttemptQuestion(
+                        attempt_id=attempt.id,
+                        question_id=q.id,
+                        question_order=order,
+                        selected_option=None
+                    )
+                    db.session.add(aq)
+        try:
+            db.session.flush()
+        except Exception:
+            db.session.rollback()
     else:
         from app.services.question_service import generate_questions_for_attempt
         try:
@@ -149,8 +180,19 @@ def rehydrate_attempt_if_needed(attempt_id, answers_payload=None):
         except Exception:
             pass
 
+    # Apply any client-submitted or session-cached candidate answers on top of the 20 questions
+    if not answers_payload:
+        answers_payload = session.get("candidate_answers")
+
+    if answers_payload and isinstance(answers_payload, list):
+        _apply_answers_payload(attempt, answers_payload)
+
     # 6. Recalculate exact question scores directly from AttemptQuestions
     _rescore_attempt_questions(attempt)
+    if attempt_status == "in_progress":
+        # Keep status strictly in_progress so timer continues uninterrupted
+        attempt.status = "in_progress"
+        attempt.end_time = None
 
     # 7. Recreate CandidateDiscount if present in session
     discount_pin = session.get("discount_pin")
