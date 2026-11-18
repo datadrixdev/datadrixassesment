@@ -39,9 +39,8 @@ def result_view(attempt_id):
     if attempt.status == "aborted":
         return redirect(url_for("results.aborted_view", attempt_id=attempt.id))
 
-    if attempt.status == "in_progress":
-        from app.services.scoring_service import finalize_and_score_attempt
-        finalize_and_score_attempt(attempt.id)
+    from app.services.scoring_service import finalize_and_score_attempt
+    finalize_and_score_attempt(attempt.id)
 
     section_scores = get_section_scores(attempt)
 

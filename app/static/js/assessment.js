@@ -152,11 +152,24 @@ const AssessmentApp = (() => {
     }
   }
 
+  function saveAnswersToStorage() {
+    try {
+      if (!attemptId) return;
+      const data = questions.map(q => ({
+        order: q.order,
+        code: q.code || "",
+        selected_option: q.selected_option || null
+      }));
+      localStorage.setItem("assessment_answers_" + attemptId, JSON.stringify(data));
+    } catch (e) {}
+  }
+
   function selectOption(optionVal) {
     const q = questions[currentIndex];
     if (!q) return;
 
     q.selected_option = optionVal;
+    saveAnswersToStorage();
 
     // Update UI immediately
     const radioInputs = document.querySelectorAll('input[name="assessmentOption"]');
@@ -223,6 +236,10 @@ const AssessmentApp = (() => {
         },
         body: JSON.stringify({ answers: answersPayload })
       });
+
+      try {
+        localStorage.removeItem("assessment_answers_" + attemptId);
+      } catch (e) {}
 
       const data = await resp.json();
       if (data && data.redirect_url) {
@@ -300,6 +317,22 @@ const AssessmentApp = (() => {
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
     questions = window.ASSESSMENT_DATA.questions || [];
+
+    // Restore saved answers from localStorage if page reloaded
+    try {
+      const saved = localStorage.getItem("assessment_answers_" + attemptId);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(item => {
+            const match = questions.find(q => q.order === item.order);
+            if (match && item.selected_option) {
+              match.selected_option = item.selected_option;
+            }
+          });
+        }
+      }
+    } catch (e) {}
 
     if (submitModalEl && window.bootstrap) {
       submitModal = new bootstrap.Modal(submitModalEl);

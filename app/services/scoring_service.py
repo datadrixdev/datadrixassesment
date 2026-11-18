@@ -9,14 +9,18 @@ def utc_now():
 def finalize_and_score_attempt(attempt_id):
     """
     Finalizes an assessment attempt and calculates scores atomically.
-    Idempotent: If attempt is already completed, returns existing scored attempt.
+    Idempotent: If attempt is already properly scored, returns existing scored attempt.
     """
+    db.session.expire_all()
     attempt = db.session.get(AssessmentAttempt, attempt_id)
     if not attempt:
         raise ValueError(f"Attempt with ID {attempt_id} not found.")
 
-    # If already completed or aborted, do not recalculate or alter timestamps
-    if attempt.status in ["completed", "aborted"]:
+    if attempt.status == "aborted":
+        return attempt
+
+    # If already completed with a valid evaluated breakdown, return it
+    if attempt.status == "completed" and (attempt.correct_count > 0 or attempt.incorrect_count > 0):
         return attempt
 
     # Gather attempt questions and questions
@@ -34,14 +38,15 @@ def finalize_and_score_attempt(attempt_id):
     }
 
     for aq in attempt_questions:
-        section = aq.question.section
+        section = aq.question.section if aq.question else "General Aptitude"
         if section not in section_breakdown:
             section_breakdown[section] = {"correct": 0, "total": 0}
         section_breakdown[section]["total"] += 1
 
-        if aq.selected_option is None:
+        opt = aq.selected_option
+        if opt is None or str(opt).strip() == "" or str(opt).strip().lower() in ["none", "null"]:
             unanswered_count += 1
-        elif aq.selected_option == aq.question.correct_option:
+        elif aq.question and str(opt).strip().upper() == str(aq.question.correct_option).strip().upper():
             correct_count += 1
             section_breakdown[section]["correct"] += 1
         else:
@@ -56,7 +61,8 @@ def finalize_and_score_attempt(attempt_id):
     attempt.incorrect_count = incorrect_count
     attempt.unanswered_count = unanswered_count
     attempt.status = "completed"
-    attempt.end_time = utc_now()
+    if not attempt.end_time:
+        attempt.end_time = utc_now()
 
     # Log event
     event_metadata = {
@@ -103,11 +109,11 @@ def get_section_scores(attempt):
     }
 
     for aq in attempt_questions:
-        sec = aq.question.section
+        sec = aq.question.section if aq.question else "General Aptitude"
         if sec not in sections:
             sections[sec] = {"name": sec, "correct": 0, "total": 0, "icon": "bi-card-checklist"}
         sections[sec]["total"] += 1
-        if aq.selected_option and aq.selected_option == aq.question.correct_option:
+        if aq.selected_option and aq.question and str(aq.selected_option).strip().upper() == str(aq.question.correct_option).strip().upper():
             sections[sec]["correct"] += 1
 
     results = []

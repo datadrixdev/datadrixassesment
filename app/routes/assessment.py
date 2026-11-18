@@ -292,6 +292,9 @@ def submit_assessment(attempt_id):
     session["completed_attempt_id"] = scored_attempt.id
     session["attempt_score"] = scored_attempt.score
     session["attempt_max_score"] = scored_attempt.max_score
+    session["attempt_correct_count"] = scored_attempt.correct_count
+    session["attempt_incorrect_count"] = scored_attempt.incorrect_count
+    session["attempt_unanswered_count"] = scored_attempt.unanswered_count
     session["attempt_status"] = "completed"
 
     from app.models.discount import CandidateDiscount
