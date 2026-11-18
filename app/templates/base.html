@@ -23,7 +23,7 @@
 
   <!-- Datadrix Application Header / Navigation -->
   {% block navbar %}
-  {% if not request.args.get('embed') and not request.args.get('hideNav') %}
+  {% if not request.args.get('embed') and not request.args.get('hideNav') and not session.get('is_embedded') %}
   <header class="app-navbar">
     <div class="container-wide d-flex align-items-center justify-content-between">
       <a href="{{ url_for('main.index') }}" class="d-flex align-items-center text-decoration-none">
@@ -55,6 +55,7 @@
 
   <!-- Global Footer -->
   {% block footer %}
+  {% if not request.args.get('embed') and not request.args.get('hideNav') and not session.get('is_embedded') %}
   <footer class="app-footer">
     <div class="container-wide text-center">
       <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3">
@@ -70,6 +71,7 @@
       </div>
     </div>
   </footer>
+  {% endif %}
   {% endblock %}
 
   <!-- Bootstrap 5 Bundle JS -->

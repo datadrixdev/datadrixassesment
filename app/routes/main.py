@@ -14,6 +14,10 @@ def index():
     session.pop("candidate_id", None)
     session.pop("candidate_name", None)
     session.pop("candidate_email", None)
+    if request.args.get("embed") in ["1", "true", "True"]:
+        session["is_embedded"] = True
+    elif "embed" in request.args:
+        session.pop("is_embedded", None)
     form = CandidateRegistrationForm()
     return render_template("index.html", form=form)
 

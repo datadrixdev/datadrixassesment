@@ -10,11 +10,13 @@
   <div class="container-fluid px-2 px-sm-3 px-md-4 d-flex align-items-center justify-content-between">
     <!-- Brand & Candidate Details -->
     <div class="d-flex align-items-center gap-2 gap-sm-3">
+      {% if not session.get('is_embedded') and not request.args.get('embed') %}
       <div class="d-flex align-items-center">
         <img src="{{ url_for('static', filename='images/datadrix-logo.png') }}" alt="Datadrix" height="34" class="me-1 me-sm-2 header-logo-img">
       </div>
 
       <div class="vr d-none d-md-block opacity-25"></div>
+      {% endif %}
 
       <div class="d-none d-sm-flex flex-column">
         <span class="fw-bold text-white lh-1 text-truncate" style="font-size: 0.95rem; max-width: 150px;">{{ candidate_name }}</span>
