@@ -24,6 +24,20 @@ def create_app(config_name=None):
     app.register_blueprint(assessment_bp)
     app.register_blueprint(results_bp)
 
+    @app.after_request
+    def set_iframe_headers(response):
+        # Allow embedding in Datadrix website frames and add Partitioned for CHIPS
+        response.headers['X-Frame-Options'] = 'ALLOWALL'
+        cookies = response.headers.getlist('Set-Cookie')
+        if cookies:
+            response.headers.remove('Set-Cookie')
+            for c in cookies:
+                if 'Partitioned' not in c:
+                    response.headers.add('Set-Cookie', f"{c}; Partitioned")
+                else:
+                    response.headers.add('Set-Cookie', c)
+        return response
+
     # Register error handlers
     @app.errorhandler(400)
     def bad_request(error):

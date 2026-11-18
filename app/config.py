@@ -29,11 +29,13 @@ class Config:
     QUESTIONS_PER_SECTION = 5
     TOTAL_QUESTIONS = 20
     
-    # Session & Security
+    # Session & Security (Configured for embedded iframe assessment portal)
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SECURE = True
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
-    WTF_CSRF_ENABLED = True
+    WTF_CSRF_ENABLED = False
+    WTF_CSRF_CHECK_DEFAULT = False
     WTF_CSRF_TIME_LIMIT = None
 
     # Email / SMTP Configuration
@@ -50,7 +52,7 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
-    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = True
 
 class TestingConfig(Config):
     """Testing configuration."""
@@ -64,7 +66,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
-    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "False").lower() in ("true", "1")
+    SESSION_COOKIE_SECURE = True
 
 config_by_name = {
     "development": DevelopmentConfig,

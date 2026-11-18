@@ -23,6 +23,7 @@
 
   <!-- Datadrix Application Header / Navigation -->
   {% block navbar %}
+  {% if not request.args.get('embed') and not request.args.get('hideNav') %}
   <header class="app-navbar">
     <div class="container-wide d-flex align-items-center justify-content-between">
       <a href="{{ url_for('main.index') }}" class="d-flex align-items-center text-decoration-none">
@@ -30,6 +31,7 @@
       </a>
     </div>
   </header>
+  {% endif %}
   {% endblock %}
 
   <!-- Flash Messages -->
