@@ -32,6 +32,12 @@
 
         <!-- Right: Action CTAs (Retake & Export PDF) -->
         <div class="d-flex align-items-center gap-2 ms-auto ms-sm-0">
+          {% if discount and discount.pin %}
+          <button type="button" class="btn btn-warning btn-sm fw-bold d-inline-flex align-items-center gap-1.5 px-3 py-1.5 text-dark shadow-sm" onclick="applyDiscountAndReturn('{{ discount.pin }}')" style="font-size: 0.82rem; background: linear-gradient(135deg, #f59e0b, #f97316); border: none; color: #000 !important;">
+            <i class="bi bi-tag-fill text-dark"></i>
+            <span>Apply Coupon &amp; Return to Course</span>
+          </button>
+          {% endif %}
           <form method="POST" action="{{ url_for('assessment.retake_assessment', attempt_id=attempt.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-outline-info btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" style="font-size: 0.82rem;">
@@ -187,6 +193,10 @@
               <div class="d-inline-flex align-items-center bg-dark bg-opacity-80 border border-info border-2 rounded-3 px-3 py-2 font-monospace fs-3 fw-bold text-cyan voucher-pin-code" style="letter-spacing: 0.18em; user-select: all;">
                 <span id="discountPinText">{{ discount.pin }}</span>
               </div>
+              <button type="button" class="btn btn-warning btn-sm px-3 py-2 fw-bold d-flex align-items-center gap-1.5 text-dark shadow-sm" onclick="applyDiscountAndReturn('{{ discount.pin }}')" style="background: linear-gradient(135deg, #f59e0b, #f97316); border: none; color: #000 !important;">
+                <i class="bi bi-tag-fill text-dark"></i>
+                <span>Apply Coupon &amp; Return to Course</span>
+              </button>
               <button type="button" class="btn btn-outline-info btn-sm px-3 py-2 fw-semibold d-flex align-items-center gap-1" id="copyPinBtn" onclick="copyDiscountPin('{{ discount.pin }}')">
                 <i class="bi bi-clipboard" id="copyPinIcon"></i>
                 <span id="copyPinLabel">Copy 10-Digit Key</span>
@@ -279,6 +289,38 @@
 
 {% block extra_scripts %}
 <script>
+  function applyDiscountAndReturn(pin) {
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'DATADRIX_APPLY_COUPON',
+          pin: pin
+        }, '*');
+        return;
+      }
+    } catch (e) {}
+
+    // Standalone fallback: redirect to course page
+    const params = new URLSearchParams(window.location.search);
+    const course = params.get('course') || '';
+    const origin = 'https://datadrix.com';
+    const dest = course ? origin + '/courses/' + course : origin;
+    window.location.href = dest + (dest.includes('?') ? '&' : '?') + 'coupon=' + encodeURIComponent(pin);
+  }
+
+  // Automatically broadcast coupon pin to parent window if inside an iframe
+  {% if discount and discount.pin %}
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'DATADRIX_COUPON_AVAILABLE',
+        pin: '{{ discount.pin }}',
+        discountPercent: {{ discount.discount_percent }}
+      }, '*');
+    }
+  } catch (err) {}
+  {% endif %}
+
   function copyDiscountPin(pin) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(pin).then(() => {
