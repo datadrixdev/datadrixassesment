@@ -321,7 +321,7 @@ a:hover {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
-  padding: 0.85rem 0;
+  padding: 0.76rem 0;
   position: sticky;
   top: 0;
   z-index: 1020;
@@ -329,7 +329,7 @@ a:hover {
 }
 
 .brand-logo-img {
-  height: 42px;
+  height: 40px;
   width: auto;
   object-fit: contain;
 }
