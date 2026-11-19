@@ -137,7 +137,7 @@
             <div class="form-check">
               {{ form.consent(class="form-check-input" + (" is-invalid" if form.consent.errors else ""), id="consentCheckbox", required=true) }}
               <label class="form-check-label small text-secondary" for="consentCheckbox">
-                I confirm that I have read the assessment instructions, retake policy (24-hour cooldown), and privacy notice. I agree to grant camera and microphone access.
+                I agree to grant camera and microphone access.
               </label>
             </div>
             {% if form.consent.errors %}

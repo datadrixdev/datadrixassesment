@@ -75,7 +75,7 @@ class CandidateRegistrationForm(FlaskForm):
     consent = BooleanField(
         "Assessment Consent",
         validators=[
-            DataRequired(message="You must agree to the assessment instructions and privacy notice.")
+            DataRequired(message="You must agree to grant camera and microphone access.")
         ]
     )
 
