@@ -8,7 +8,7 @@ def test_landing_page_renders(client):
     html = response.data.decode("utf-8")
     assert "Online Aptitude Assessment" in html
     assert "Candidate Registration" in html
-    assert "Career Transformation" in html
+    assert "career_transformation.webp" in html
 
 def test_valid_registration(client):
     """Valid form data with selected region creates candidate and redirects to device-check."""
