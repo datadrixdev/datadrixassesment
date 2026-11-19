@@ -220,14 +220,14 @@
           </div>
         </div>
       </div>
-      {% elif attempt.score < 5 %}
+      {% elif not discount or discount.discount_percent <= 0 %}
       <div class="card-clean p-4 mb-4 border-secondary-subtle">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div>
             <h6 class="fw-bold text-white mb-1"><i class="bi bi-award text-secondary me-2"></i>Datadrix Discount Program</h6>
-            <p class="text-muted small mb-0">Score 5 or more questions on your next assessment to unlock exclusive 10-digit discount keys (5-10: 10%, 11-15: 15%, 16-20: 20%).</p>
+            <p class="text-muted small mb-0">Score 4 or more questions on your next assessment to unlock exclusive 10-digit discount keys (4–6 correct: 10%, &gt;7 correct: 20%).</p>
           </div>
-          <span class="badge bg-dark text-muted border border-secondary px-3 py-2">Score &lt; 5 (No Discount)</span>
+          <span class="badge bg-dark text-muted border border-secondary px-3 py-2">Score &lt; 4 (No Discount)</span>
         </div>
       </div>
       {% endif %}

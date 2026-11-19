@@ -12,8 +12,8 @@ from app.models.discount import CandidateDiscount
 logger = logging.getLogger(__name__)
 
 # Default MongoDB URI & Collection
-DEFAULT_MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/datadrix_discounts")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "datadrix_discounts")
+DEFAULT_MONGO_URI = os.getenv("MONGO_URI") or os.getenv("MONGODB_URI") or "mongodb+srv://datadrix:NitinSmriti%40123@cluster0.nixp0m6.mongodb.net/datadrix?retryWrites=true&w=majority"
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME") or "datadrix"
 MONGO_COLLECTION_NAME = "candidate_discounts"
 
 # Default retake cooldown: 24 hours from previous assessment end time
@@ -30,49 +30,65 @@ def utc_now():
 
 def calculate_discount(score):
     """
-    Determine discount percentage based on correct questions score out of 20:
-    - 16 to 20: 20%
-    - 11 to 15: 15%
-    - 5 to 10: 10%
-    - Otherwise (0 to 4): 0%
+    Determine discount percentage based on correct questions score:
+    - Above 7 correct questions (7 or more, score >= 7): 20%
+    - 4 to 6 correct questions (4 <= score <= 6): 10%
+    - 0 to 3 correct questions (score <= 3): 0% (no discount)
     """
     try:
         s = int(score)
     except (ValueError, TypeError):
         return 0
 
-    if 16 <= s <= 20:
+    if s >= 7:
         return 20
-    elif 11 <= s <= 15:
-        return 15
-    elif 5 <= s <= 10:
+    elif 4 <= s <= 6:
         return 10
     else:
         return 0
 
-def generate_10_digit_pin():
+def generate_10_digit_pin(discount_percent=None):
     """
     Generate a cryptographically secure, unique 10-character alphanumeric key
-    composed of a mix of Capital letters (A-Z) and numbers (0-9).
+    composed of uppercase letters (A-Z) and numbers (0-9).
+    - If discount_percent == 20: Prefixed with 'DX20' + 6 alphanumeric characters.
+    - If discount_percent == 10: Prefixed with 'DX10' + 6 alphanumeric characters.
+    - Otherwise: Balanced 10 alphanumeric characters.
     Guaranteed unique in both SQLite/PostgreSQL and MongoDB.
     """
-    # Uppercase letters and numbers (excluding easily confused O, 0, I, 1 for maximum usability)
     UPPERCASE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ"
     NUMBERS = "23456789"
+    ALL_CHARS = UPPERCASE_LETTERS + NUMBERS
+
+    prefix = ""
+    if discount_percent == 20:
+        prefix = "DX20"
+    elif discount_percent == 10:
+        prefix = "DX10"
+
+    suffix_len = 10 - len(prefix)
 
     for _ in range(100):
-        # Ensure a healthy mix: 5 capital letters and 5 numbers
-        letters_part = [secrets.choice(UPPERCASE_LETTERS) for _ in range(5)]
-        numbers_part = [secrets.choice(NUMBERS) for _ in range(5)]
-        chars = letters_part + numbers_part
-
-        # Cryptographically secure shuffle of character positions
-        shuffled = []
-        pool = list(chars)
-        while pool:
-            idx = secrets.randbelow(len(pool))
-            shuffled.append(pool.pop(idx))
-        pin = "".join(shuffled)
+        if prefix:
+            # Generate remaining characters ensuring both letters and numbers
+            suffix_letters = [secrets.choice(UPPERCASE_LETTERS) for _ in range(suffix_len // 2)]
+            suffix_numbers = [secrets.choice(NUMBERS) for _ in range(suffix_len - (suffix_len // 2))]
+            suffix_pool = suffix_letters + suffix_numbers
+            suffix = []
+            while suffix_pool:
+                idx = secrets.randbelow(len(suffix_pool))
+                suffix.append(suffix_pool.pop(idx))
+            pin = prefix + "".join(suffix)
+        else:
+            letters_part = [secrets.choice(UPPERCASE_LETTERS) for _ in range(5)]
+            numbers_part = [secrets.choice(NUMBERS) for _ in range(5)]
+            chars = letters_part + numbers_part
+            shuffled = []
+            pool = list(chars)
+            while pool:
+                idx = secrets.randbelow(len(pool))
+                shuffled.append(pool.pop(idx))
+            pin = "".join(shuffled)
 
         # Check local DB
         if CandidateDiscount.query.filter_by(pin=pin).first():
@@ -89,8 +105,9 @@ def generate_10_digit_pin():
         return pin
 
     # Fallback alphanumeric generator
-    all_chars = UPPERCASE_LETTERS + NUMBERS
-    return "".join(secrets.choice(all_chars) for _ in range(10))
+    if prefix:
+        return prefix + "".join(secrets.choice(ALL_CHARS) for _ in range(suffix_len))
+    return "".join(secrets.choice(ALL_CHARS) for _ in range(10))
 
 def get_mongo_collection():
     """
@@ -186,9 +203,9 @@ def create_or_get_discount(attempt):
     """
     Finalize discount generation for an attempt.
     - If already exists, return existing.
-    - If score qualifies (>= 5), generate 10-digit PIN valid for 3 days.
+    - If score qualifies (>= 4), generate 10-digit PIN valid for 3 days.
     - Save to local DB and MongoDB.
-    - If score < 5, returns None (no discount).
+    - If score < 4, returns None (no discount).
     """
     # Check if discount already generated for this attempt
     existing = CandidateDiscount.query.filter_by(attempt_id=attempt.id).first()
@@ -203,7 +220,7 @@ def create_or_get_discount(attempt):
         return None
 
     candidate = attempt.candidate
-    pin = generate_10_digit_pin()
+    pin = generate_10_digit_pin(discount_percent=discount_percent)
     now = utc_now()
     expires_at = now + timedelta(days=3)
 

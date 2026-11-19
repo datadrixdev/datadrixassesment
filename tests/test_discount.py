@@ -16,24 +16,21 @@ def utc_now():
 
 def test_discount_score_tiers():
     """Verify exact discount percentages according to candidate score tiers."""
-    # 16 to 20: 20%
+    # Above 7 correct: 20%
     assert calculate_discount(20) == 20
-    assert calculate_discount(18) == 20
-    assert calculate_discount(16) == 20
+    assert calculate_discount(10) == 20
+    assert calculate_discount(8) == 20
+    assert calculate_discount(7) == 20
 
-    # 11 to 15: 15%
-    assert calculate_discount(15) == 15
-    assert calculate_discount(13) == 15
-    assert calculate_discount(11) == 15
-
-    # 5 to 10: 10%
-    assert calculate_discount(10) == 10
-    assert calculate_discount(8) == 10
+    # 4 to 6: 10%
+    assert calculate_discount(6) == 10
     assert calculate_discount(5) == 10
+    assert calculate_discount(4) == 10
 
-    # Otherwise (< 5): 0%
-    assert calculate_discount(4) == 0
+    # 0 to 3 (no discount): 0%
+    assert calculate_discount(3) == 0
     assert calculate_discount(2) == 0
+    assert calculate_discount(1) == 0
     assert calculate_discount(0) == 0
 
 def test_10_digit_pin_generation(app):
@@ -41,19 +38,31 @@ def test_10_digit_pin_generation(app):
     with app.app_context():
         pins = set()
         for _ in range(50):
-            pin = generate_10_digit_pin()
+            pin = generate_10_digit_pin(discount_percent=20)
             assert len(pin) == 10
+            assert pin.startswith("DX20")
             assert pin.isalnum()
             assert any(c.isupper() for c in pin), f"Key {pin} must contain capital letters"
             assert any(c.isdigit() for c in pin), f"Key {pin} must contain numbers"
             assert pin == pin.upper(), f"Key {pin} must not contain lowercase letters"
             pins.add(pin)
-        assert len(pins) == 50
+
+        for _ in range(50):
+            pin = generate_10_digit_pin(discount_percent=10)
+            assert len(pin) == 10
+            assert pin.startswith("DX10")
+            assert pin.isalnum()
+            assert any(c.isupper() for c in pin), f"Key {pin} must contain capital letters"
+            assert any(c.isdigit() for c in pin), f"Key {pin} must contain numbers"
+            assert pin == pin.upper(), f"Key {pin} must not contain lowercase letters"
+            pins.add(pin)
+
+        assert len(pins) == 100
 
 def test_discount_creation_and_3_day_validity(app, active_attempt):
     """Verify 10-character alphanumeric voucher is created with 3-day validity for qualifying scores."""
     with app.app_context():
-        active_attempt.score = 17
+        active_attempt.score = 8
         active_attempt.status = "completed"
         active_attempt.end_time = utc_now()
         db.session.commit()
@@ -62,11 +71,12 @@ def test_discount_creation_and_3_day_validity(app, active_attempt):
         assert discount is not None
         assert discount.discount_percent == 20
         assert len(discount.pin) == 10
+        assert discount.pin.startswith("DX20")
         assert discount.pin.isalnum()
         assert any(c.isupper() for c in discount.pin)
         assert any(c.isdigit() for c in discount.pin)
         assert discount.pin == discount.pin.upper()
-        assert discount.score == 17
+        assert discount.score == 8
         assert discount.valid_days == 3
 
         # Expiry is exactly 3 days after creation
@@ -82,9 +92,9 @@ def test_discount_creation_and_3_day_validity(app, active_attempt):
         assert discount2.pin == discount.pin
 
 def test_no_discount_for_low_scores(app, active_attempt):
-    """Scores below 5 do not receive a discount."""
+    """Scores of 0 to 3 do not receive a discount."""
     with app.app_context():
-        active_attempt.score = 4
+        active_attempt.score = 3
         active_attempt.status = "completed"
         db.session.commit()
 
@@ -94,8 +104,8 @@ def test_no_discount_for_low_scores(app, active_attempt):
 def test_retake_cooldown_and_previous_history(app, active_attempt):
     """Verify retake cooldown hours and previous score reporting for returning candidates."""
     with app.app_context():
-        # Complete attempt 6 hours ago
-        active_attempt.score = 14
+        # Complete attempt 6 hours ago with score 5 (qualifies for 10%)
+        active_attempt.score = 5
         active_attempt.status = "completed"
         active_attempt.end_time = utc_now() - timedelta(hours=6)
         db.session.commit()
@@ -104,9 +114,10 @@ def test_retake_cooldown_and_previous_history(app, active_attempt):
 
         history = get_candidate_previous_history(active_attempt.candidate_id, cooldown_hours=24)
         assert history["has_previous_attempt"] is True
-        assert history["previous_attempt"].score == 14
-        assert history["discount"].discount_percent == 15
+        assert history["previous_attempt"].score == 5
+        assert history["discount"].discount_percent == 10
         assert len(history["discount"].pin) == 10
+        assert history["discount"].pin.startswith("DX10")
         
         # 24 hours - 6 hours = ~18 hours remaining
         assert history["cooldown_active"] is True

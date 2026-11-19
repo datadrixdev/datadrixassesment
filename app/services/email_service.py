@@ -582,7 +582,7 @@ def send_assessment_result_email(attempt, async_send=False):
 
     # Get discount voucher if qualified
     discount = CandidateDiscount.query.filter_by(attempt_id=attempt.id).first()
-    if not discount and attempt.score >= 5:
+    if not discount and (attempt.score or 0) >= 4:
         from app.services.discount_service import create_or_get_discount
         try:
             discount = create_or_get_discount(attempt)

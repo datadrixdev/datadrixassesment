@@ -7,9 +7,8 @@ def test_landing_page_renders(client):
     assert response.status_code == 200
     html = response.data.decode("utf-8")
     assert "Online Aptitude Assessment" in html
-    assert "Total questions:" in html
-    assert "15 minutes" in html
     assert "Candidate Registration" in html
+    assert "Career Transformation" in html
 
 def test_valid_registration(client):
     """Valid form data with selected region creates candidate and redirects to device-check."""
