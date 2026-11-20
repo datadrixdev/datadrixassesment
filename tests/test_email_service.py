@@ -13,7 +13,10 @@ from app.services.email_service import (
     generate_result_email_text,
     send_email_message,
     send_assessment_result_email,
-    get_proficiency_meta
+    get_proficiency_meta,
+    generate_lead_email_html,
+    generate_lead_email_text,
+    send_assessment_lead_notification
 )
 
 def utc_now():
@@ -186,3 +189,99 @@ def test_email_local_archive_created(app, email_test_data):
             content = f.read()
             assert "Alex Mercer" in content
             assert "alex.mercer@example.com" in content
+
+def test_lead_email_generation_pass_and_fail(app, email_test_data):
+    """Verify lead email HTML and Text formatting for both passing and failing candidates."""
+    with app.app_context():
+        attempt = db.session.get(AssessmentAttempt, email_test_data["attempt_id"])
+        finalize_and_score_attempt(attempt.id)
+        candidate = attempt.candidate
+        discount = CandidateDiscount.query.filter_by(attempt_id=attempt.id).first()
+
+        # Test Passing Candidate (80% score -> 20% discount & coupon PIN)
+        html_pass = generate_lead_email_html(candidate, attempt, discount)
+        text_pass = generate_lead_email_text(candidate, attempt, discount)
+
+        # Check Name, Email, Phone, Discount, Coupon PIN in HTML
+        assert "Alex Mercer" in html_pass
+        assert "alex.mercer@example.com" in html_pass
+        assert "+91 9876543210" in html_pass
+        assert "20% Discount" in html_pass
+        assert discount.pin in html_pass
+        assert "PASSED / QUALIFIED" in html_pass
+
+        # Check Name, Email, Phone, Discount, Coupon PIN in Text
+        assert "Alex Mercer" in text_pass
+        assert "alex.mercer@example.com" in text_pass
+        assert "+91 9876543210" in text_pass
+        assert "20% Discount" in text_pass
+        assert discount.pin in text_pass
+
+        # Test Failing Candidate (score < 4 -> 0% discount, no coupon PIN)
+        fail_attempt = AssessmentAttempt(
+            candidate_id=candidate.id,
+            attempt_number=2,
+            start_time=utc_now(),
+            status="completed",
+            score=2,
+            max_score=20,
+            correct_count=2,
+            incorrect_count=18,
+            unanswered_count=0
+        )
+        html_fail = generate_lead_email_html(candidate, fail_attempt, None)
+        text_fail = generate_lead_email_text(candidate, fail_attempt, None)
+
+        assert "Alex Mercer" in html_fail
+        assert "alex.mercer@example.com" in html_fail
+        assert "+91 9876543210" in html_fail
+        assert "No Discount" in html_fail
+        assert "None" in html_fail
+        assert "FAILED" in html_fail
+
+        assert "Alex Mercer" in text_fail
+        assert "No Discount" in text_fail
+        assert "None" in text_fail
+
+def test_automatic_lead_notification_on_finalize(app, email_test_data):
+    """Verify that finalizing an attempt automatically logs the ASSESSMENT_LEAD_NOTIFIED event."""
+    with app.app_context():
+        attempt = db.session.get(AssessmentAttempt, email_test_data["attempt_id"])
+        finalize_and_score_attempt(attempt.id)
+
+        # Check that AssessmentEvent for lead notification was created
+        lead_event = AssessmentEvent.query.filter_by(
+            attempt_id=attempt.id,
+            event_type="ASSESSMENT_LEAD_NOTIFIED"
+        ).first()
+
+        assert lead_event is not None
+        meta = json.loads(lead_event.metadata_json)
+        assert meta["admin_recipient"] == "datadrix@gmail.com"
+        assert meta["candidate_name"] == "Alex Mercer"
+        assert meta["candidate_email"] == "alex.mercer@example.com"
+        assert meta["candidate_phone"] == "+91 9876543210"
+        assert meta["discount_percent"] == 20
+        assert meta["coupon_code"] is not None
+        assert meta["coupon_code"].startswith("DX20")
+
+def test_lead_notification_local_archive_created(app, email_test_data):
+    """Verify that lead notification HTML/TXT copies are archived in instance/sent_emails."""
+    with app.app_context():
+        attempt = db.session.get(AssessmentAttempt, email_test_data["attempt_id"])
+        finalize_and_score_attempt(attempt.id)
+
+        base_dir = app.config.get("BASE_DIR", os.getcwd())
+        output_dir = os.path.join(base_dir, "instance", "sent_emails")
+        lead_html_file = os.path.join(output_dir, f"{attempt.id}_lead.html")
+        lead_txt_file = os.path.join(output_dir, f"{attempt.id}_lead.txt")
+
+        assert os.path.exists(lead_html_file), f"Expected {lead_html_file} to exist."
+        assert os.path.exists(lead_txt_file), f"Expected {lead_txt_file} to exist."
+
+        with open(lead_html_file, "r", encoding="utf-8") as f:
+            content = f.read()
+            assert "Alex Mercer" in content
+            assert "alex.mercer@example.com" in content
+            assert "+91 9876543210" in content
+            assert "New Lead from Assessment" in content

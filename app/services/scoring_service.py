@@ -89,10 +89,11 @@ def finalize_and_score_attempt(attempt_id):
     except Exception as disc_err:
         pass
 
-    # Automatically dispatch result report to candidate's registered email
+    # Automatically dispatch result report to candidate's registered email & lead alert to datadrix@gmail.com
     try:
-        from app.services.email_service import send_assessment_result_email
+        from app.services.email_service import send_assessment_result_email, send_assessment_lead_notification
         send_assessment_result_email(attempt)
+        send_assessment_lead_notification(attempt)
     except Exception as email_err:
         pass
 

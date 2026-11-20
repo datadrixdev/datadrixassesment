@@ -45,9 +45,10 @@ class Config:
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
     SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "True").lower() in ("true", "1")
     SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "False").lower() in ("true", "1")
-    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "Datadrix Assessments <assessments@datadrix.com>")
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "Datadrix Assessments <datadrix@gmail.com>")
     MAIL_SAVE_LOCAL_COPY = os.environ.get("MAIL_SAVE_LOCAL_COPY", "True").lower() in ("true", "1")
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+    ADMIN_LEAD_EMAIL = os.environ.get("ADMIN_LEAD_EMAIL", "datadrix@gmail.com")
 
 class DevelopmentConfig(Config):
     """Development configuration."""
@@ -62,6 +63,7 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False
     SESSION_COOKIE_SECURE = False
     SECRET_KEY = "test-secret-key-12345"
+    SMTP_SERVER = ""
 
 class ProductionConfig(Config):
     """Production configuration."""

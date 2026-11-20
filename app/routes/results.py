@@ -155,6 +155,24 @@ def result_email_preview(attempt_id):
     )
     return html_content, 200, {"Content-Type": "text/html; charset=utf-8"}
 
+@results_bp.route("/result/<attempt_id>/lead-email-preview", methods=["GET"])
+def result_lead_email_preview(attempt_id):
+    """Render the exact HTML lead notification email sent to datadrix@gmail.com."""
+    from flask import request
+    attempt, redirect_resp = verify_candidate_attempt(attempt_id)
+    if redirect_resp:
+        return redirect_resp
+
+    from app.services.email_service import generate_lead_email_html
+    from app.models.discount import CandidateDiscount
+
+    discount = CandidateDiscount.query.filter_by(attempt_id=attempt.id).first()
+    html_content = generate_lead_email_html(
+        attempt.candidate, attempt, discount,
+        base_url=request.host_url
+    )
+    return html_content, 200, {"Content-Type": "text/html; charset=utf-8"}
+
 @results_bp.route("/aborted", methods=["GET"])
 @results_bp.route("/aborted/<attempt_id>", methods=["GET"])
 def aborted_view(attempt_id=None):

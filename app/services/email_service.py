@@ -461,7 +461,7 @@ def generate_result_email_text(candidate, attempt, section_scores, discount=None
 
     return "\n".join(lines)
 
-def save_sent_email_copy(attempt_id, recipient, subject, html_content, text_content):
+def save_sent_email_copy(attempt_id, recipient, subject, html_content, text_content, tag="report"):
     """
     Saves an offline copy of the dispatched email report into instance/sent_emails/
     so developers and candidates can immediately inspect the exact email delivered.
@@ -475,31 +475,32 @@ def save_sent_email_copy(attempt_id, recipient, subject, html_content, text_cont
             "attempt_id": attempt_id,
             "recipient": recipient,
             "subject": subject,
+            "tag": tag,
             "sent_at": utc_now().isoformat()
         }
 
         # Save HTML version
-        html_path = os.path.join(output_dir, f"{attempt_id}_report.html")
+        html_path = os.path.join(output_dir, f"{attempt_id}_{tag}.html")
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         # Save Text version
-        txt_path = os.path.join(output_dir, f"{attempt_id}_report.txt")
+        txt_path = os.path.join(output_dir, f"{attempt_id}_{tag}.txt")
         with open(txt_path, "w", encoding="utf-8") as f:
             f.write(text_content)
 
         # Save Metadata
-        json_path = os.path.join(output_dir, f"{attempt_id}_meta.json")
+        json_path = os.path.join(output_dir, f"{attempt_id}_{tag}_meta.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=2)
 
-        logger.info("Saved local copy of sent email to %s", html_path)
+        logger.info("Saved local copy of sent email (%s) to %s", tag, html_path)
         return html_path
     except Exception as e:
         logger.warning("Could not save local email copy: %s", e)
         return None
 
-def send_email_message(to_email, subject, html_content, text_content=None, attempt_id=None):
+def send_email_message(to_email, subject, html_content, text_content=None, attempt_id=None, tag="report"):
     """
     Delivers a multipart email via configured SMTP server, or archives locally if SMTP is unconfigured.
     Returns delivery status dictionary.
@@ -531,7 +532,7 @@ def send_email_message(to_email, subject, html_content, text_content=None, attem
 
     # Always preserve local archive if requested
     if save_local and attempt_id:
-        save_sent_email_copy(attempt_id, to_email, subject, html_content, text_content or "")
+        save_sent_email_copy(attempt_id, to_email, subject, html_content, text_content or "", tag=tag)
 
     if smtp_server:
         try:
@@ -621,5 +622,277 @@ def send_assessment_result_email(attempt, async_send=False):
         t = threading.Thread(target=_deliver, daemon=True)
         t.start()
         return {"status": "dispatched_async", "recipient": candidate.email}
+    else:
+        return _deliver()
+
+def get_lead_discount_details(attempt, discount=None):
+    """Derive clean discount summary, badge styling, and coupon code display for lead notifications."""
+    score = attempt.score or 0
+    passed = score >= 4
+
+    if discount and getattr(discount, "discount_percent", 0) > 0:
+        discount_percent = discount.discount_percent
+        discount_display = f"{discount_percent}% Discount"
+        coupon_code = discount.pin or "N/A"
+        badge_color = "#10b981"
+        badge_bg = "#ecfdf5"
+    else:
+        discount_percent = 0
+        discount_display = f"No Discount (Score: {score}/{attempt.max_score or 20})"
+        coupon_code = "None (Did not qualify for discount)"
+        badge_color = "#64748b"
+        badge_bg = "#f1f5f9"
+
+    status_display = "PASSED / QUALIFIED" if passed else "FAILED / NEEDS REVIEW"
+    status_color = "#10b981" if passed else "#dc2626"
+    status_bg = "#ecfdf5" if passed else "#fef2f2"
+
+    return {
+        "passed": passed,
+        "status_display": status_display,
+        "status_color": status_color,
+        "status_bg": status_bg,
+        "discount_percent": discount_percent,
+        "discount_display": discount_display,
+        "coupon_code": coupon_code,
+        "badge_color": badge_color,
+        "badge_bg": badge_bg,
+    }
+
+def generate_lead_email_html(candidate, attempt, discount=None, base_url="http://localhost:5000"):
+    """
+    Generate clean, modern, high-contrast HTML notification for Datadrix lead management.
+    Includes candidate name, email, phone number, discount, coupon code, score, and fast action links.
+    """
+    details = get_lead_discount_details(attempt, discount)
+    completed_date = attempt.end_time.strftime("%B %d, %Y at %I:%M %p UTC") if attempt.end_time else "Just now"
+    result_url = f"{base_url.rstrip('/')}/result/{attempt.id}"
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Lead from Assessment - Datadrix</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b1120; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: radial-gradient(circle at top, #131c31 0%, #0b1120 100%); padding: 32px 12px;">
+    <tr>
+      <td align="center">
+        <!-- Main Lead Notification Container -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 620px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3); border: 1px solid #1e293b;">
+          
+          <!-- Modern Dark Header Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #090d16 0%, #0f172a 60%, #1e293b 100%); padding: 26px 32px; text-align: left; border-bottom: 3px solid #06b6d4;">
+              <div style="color: #06b6d4; font-size: 11px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 6px;">
+                DATADRIX ADMISSIONS &amp; LEADS
+              </div>
+              <h1 style="margin: 0 0 6px; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.01em;">
+                New Lead from Assessment
+              </h1>
+              <div style="color: #94a3b8; font-size: 13px;">
+                Candidate completed assessment &bull; Status: <strong style="color: {details['status_color']};">{details['status_display']}</strong>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 28px 32px;">
+              
+              <!-- Section 1: Candidate Contact Information -->
+              <div style="background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 22px;">
+                <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 12px;">
+                  Candidate Details
+                </div>
+                
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #64748b; width: 140px; font-weight: 600;">Full Name:</td>
+                    <td style="padding: 7px 0; font-size: 15px; color: #0f172a; font-weight: 700;">{candidate.full_name}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 600;">Email Address:</td>
+                    <td style="padding: 7px 0; font-size: 14px;">
+                      <a href="mailto:{candidate.email}" style="color: #0284c7; text-decoration: none; font-weight: 700;">{candidate.email}</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 600;">Phone Number:</td>
+                    <td style="padding: 7px 0; font-size: 15px;">
+                      <a href="tel:{candidate.mobile_number}" style="color: #0284c7; text-decoration: none; font-weight: 700;">{candidate.mobile_number}</a>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Section 2: Assessment & Discount Details -->
+              <div style="border: 2px solid #06b6d4; background: linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0891b2; margin-bottom: 12px;">
+                  Assessment &amp; Discount Outcome
+                </div>
+                
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #475569; width: 140px; font-weight: 600;">Score:</td>
+                    <td style="padding: 7px 0; font-size: 15px; color: #0f172a; font-weight: 800;">
+                      {attempt.score} / {attempt.max_score} <span style="color: #0284c7; font-size: 13px;">({attempt.percentage:.1f}%)</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #475569; font-weight: 600;">Status:</td>
+                    <td style="padding: 7px 0; font-size: 13px;">
+                      <span style="display: inline-block; padding: 3px 12px; border-radius: 9999px; font-weight: 700; color: {details['status_color']}; background-color: {details['status_bg']}; border: 1px solid {details['status_color']}33;">
+                        {details['status_display']}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #475569; font-weight: 600;">Discount Received:</td>
+                    <td style="padding: 7px 0; font-size: 15px; font-weight: 800; color: #0f172a;">
+                      <span style="display: inline-block; padding: 3px 12px; border-radius: 9999px; font-weight: 800; color: {details['badge_color']}; background-color: {details['badge_bg']}; border: 1px solid {details['badge_color']}33;">
+                        {details['discount_display']}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #475569; font-weight: 600;">Coupon Code:</td>
+                    <td style="padding: 7px 0; font-size: 16px; font-weight: 800; font-family: 'Courier New', Courier, monospace; letter-spacing: 2px; color: #0f172a;">
+                      {details['coupon_code']}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 7px 0; font-size: 13px; color: #475569; font-weight: 600;">Completed:</td>
+                    <td style="padding: 7px 0; font-size: 13px; color: #64748b;">
+                      {completed_date}
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Quick Action Links -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top: 8px;">
+                <tr>
+                  <td align="center">
+                    <a href="tel:{candidate.mobile_number}" style="display: inline-block; background: #0284c7; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; margin-right: 6px;">
+                      Call Candidate
+                    </a>
+                    <a href="mailto:{candidate.email}?subject=Your%20Datadrix%20Assessment%20Results" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; margin-right: 6px;">
+                      Email Candidate
+                    </a>
+                    <a href="{result_url}" target="_blank" style="display: inline-block; background: #f8fafc; color: #334155; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 1.5px solid #cbd5e1;">
+                      View Online Result &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 32px; text-align: center; color: #94a3b8; font-size: 11px;">
+              Datadrix Automated Evaluation Engine &bull; Attempt ID: {attempt.id}
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+    return html
+
+def generate_lead_email_text(candidate, attempt, discount=None, base_url="http://localhost:5000"):
+    """Generate high-contrast Plain Text lead notification fallback."""
+    details = get_lead_discount_details(attempt, discount)
+    completed_date = attempt.end_time.strftime("%B %d, %Y at %I:%M %p UTC") if attempt.end_time else "Just now"
+    result_url = f"{base_url.rstrip('/')}/result/{attempt.id}"
+
+    lines = [
+        "=" * 60,
+        "                   LEAD FROM ASSESSMENT",
+        "=" * 60,
+        f"Candidate Name    : {candidate.full_name}",
+        f"Email Address     : {candidate.email}",
+        f"Phone Number      : {candidate.mobile_number}",
+        f"Discount Received : {details['discount_display']}",
+        f"Coupon Code       : {details['coupon_code']}",
+        "-" * 60,
+        "ASSESSMENT PERFORMANCE:",
+        f"Score             : {attempt.score} / {attempt.max_score} ({attempt.percentage:.1f}%)",
+        f"Status            : {details['status_display']}",
+        f"Submitted At      : {completed_date}",
+        f"Attempt ID        : {attempt.id}",
+        f"Online Report     : {result_url}",
+        "=" * 60,
+        "Datadrix Automated Evaluation Engine",
+        "Official Website: https://www.datadrix.com",
+        "=" * 60
+    ]
+    return "\n".join(lines)
+
+def send_assessment_lead_notification(attempt, async_send=False):
+    """
+    Sends an immediate lead notification email to datadrix@gmail.com
+    whenever a candidate completes an assessment (whether fail or pass).
+    Details: Candidate Name, Email, Phone Number, Discount earned, and Coupon Code.
+    """
+    if isinstance(attempt, str):
+        attempt = db.session.get(AssessmentAttempt, attempt)
+    if not attempt or not attempt.candidate:
+        logger.warning("Cannot send lead notification email: attempt or candidate not found.")
+        return None
+
+    candidate = attempt.candidate
+    discount = CandidateDiscount.query.filter_by(attempt_id=attempt.id).first()
+    if not discount and (attempt.score or 0) >= 4:
+        from app.services.discount_service import create_or_get_discount
+        try:
+            discount = create_or_get_discount(attempt)
+        except Exception:
+            discount = None
+
+    admin_email = (os.environ.get("ADMIN_LEAD_EMAIL") or current_app.config.get("ADMIN_LEAD_EMAIL", "datadrix@gmail.com")).strip()
+    subject = "lead from assesment"
+    base_url = current_app.config.get("APP_BASE_URL", "http://localhost:5000")
+
+    html_content = generate_lead_email_html(candidate, attempt, discount, base_url)
+    text_content = generate_lead_email_text(candidate, attempt, discount, base_url)
+
+    def _deliver():
+        result = send_email_message(admin_email, subject, html_content, text_content, attempt.id, tag="lead")
+        # Log AssessmentEvent for audit tracking
+        try:
+            event = AssessmentEvent(
+                attempt_id=attempt.id,
+                event_type="ASSESSMENT_LEAD_NOTIFIED",
+                timestamp=utc_now(),
+                metadata_json=json.dumps({
+                    "admin_recipient": admin_email,
+                    "candidate_name": candidate.full_name,
+                    "candidate_email": candidate.email,
+                    "candidate_phone": candidate.mobile_number,
+                    "score": attempt.score,
+                    "percentage": attempt.percentage,
+                    "discount_percent": discount.discount_percent if discount else 0,
+                    "coupon_code": discount.pin if discount else None,
+                    "delivery_status": result.get("status") if result else "unknown"
+                })
+            )
+            db.session.add(event)
+            db.session.commit()
+        except Exception as log_err:
+            logger.warning("Could not log lead notification event: %s", log_err)
+        return result
+
+    if async_send:
+        t = threading.Thread(target=_deliver, daemon=True)
+        t.start()
+        return {"status": "dispatched_async", "recipient": admin_email}
     else:
         return _deliver()
