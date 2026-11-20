@@ -147,7 +147,6 @@ def test_assessment_screen_three_options_and_no_review_buttons(client, candidate
     assert 'id="sidebarProctorVideo"' in html
     assert 'id="sidebarProctorCanvas"' in html
     assert 'id="headMovementModal"' in html
-    assert 'id="phoneWarningModal"' in html
 
 def test_all_questions_solvable_within_three_options(app, active_attempt):
     """All questions in an attempt must have their correct answer within A, B, or C (none requires D)."""

@@ -130,14 +130,8 @@ const ProctoringEngine = (() => {
     HeadPoseModule.setOnWarning(handleProctoringWarning);
     HeadPoseModule.setOnStatusUpdate(updateHeadPoseHUD);
 
-    PhoneDetectorModule.setOnWarning(handleProctoringWarning);
-    PhoneDetectorModule.setOnStatusUpdate(updatePhoneHUD);
-
-    // Non-blocking concurrent model initialization
-    Promise.all([
-      HeadPoseModule.initialize(),
-      PhoneDetectorModule.initialize()
-    ]).catch(err => console.warn("Background proctoring init warning:", err));
+    // Non-blocking model initialization
+    HeadPoseModule.initialize().catch(err => console.warn("Background proctoring init warning:", err));
 
     return { ready: true };
   }
@@ -201,35 +195,7 @@ const ProctoringEngine = (() => {
         let faceResult = (typeof HeadPoseModule !== "undefined") ?
           await HeadPoseModule.processVideoFrame(liveVid, now) : null;
 
-        // 2. Process Multi-Class Threat Detection (Phones, Books, Extra Persons)
-        const phoneResult = (typeof PhoneDetectorModule !== "undefined" && PhoneDetectorModule.isReady()) ?
-          await PhoneDetectorModule.processVideoFrame(liveVid, now) : null;
-
-        // Zero-latency fallback only while MediaPipe warms up
-        const isMediaPipeActive = (typeof HeadPoseModule !== "undefined" && HeadPoseModule.isReady());
-        if (!isMediaPipeActive && (!faceResult || !faceResult.faceDetected) && phoneResult && phoneResult.personBox) {
-          const pb = phoneResult.personBox;
-          const headW = pb.width * 0.65;
-          const headH = pb.height * 0.40;
-          const headX = pb.x + (pb.width - headW) / 2;
-          const headY = pb.y;
-
-          faceResult = {
-            faceDetected: true,
-            box: { x: headX, y: headY, width: headW, height: headH },
-            color: "#10B981",
-            direction: "NORMAL",
-            isWarning: false,
-            sustainedMs: 0,
-            yaw: 0,
-            pitch: 0,
-            roll: 0,
-            gaze: { ratioX: 0.5, ratioY: 0.5, state: "CENTER", isWarning: false, leftIris: null, rightIris: null },
-            liveness: { isLive: true, blinkCount: 0, ear: 0.28, staticSuspected: false }
-          };
-        }
-
-        // 3. Render High-Tech OpenCV-style HUD on all active canvases
+        // 2. Render High-Tech OpenCV-style HUD on all active canvases
         const activeCanvases = [
           document.getElementById("sidebarProctorCanvas"),
           document.getElementById("proctorPipCanvas"),
@@ -237,7 +203,7 @@ const ProctoringEngine = (() => {
         ].filter(Boolean);
 
         for (const canvas of activeCanvases) {
-          renderCanvasOverlay(liveVid, canvas, faceResult, phoneResult);
+          renderCanvasOverlay(liveVid, canvas, faceResult, null);
         }
       } catch (err) {
         console.warn("Proctoring sampling tick notice:", err);
@@ -468,49 +434,7 @@ const ProctoringEngine = (() => {
     }
 
     // =========================================================================
-    // 5. Mobile Phone Detection Overlays
-    // =========================================================================
-    if (phoneResult && phoneResult.phoneDetected && phoneResult.phoneBox) {
-      const pb = phoneResult.phoneBox;
-      const pMirX = canvas.width - (pb.x + pb.width);
-      const pMirY = pb.y;
-      const pw = pb.width;
-      const ph = pb.height;
-      const pct = Math.round((phoneResult.phoneConfidence || 0.8) * 100);
-
-      ctx.strokeStyle = "#EF4444";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(pMirX, pMirY, pw, ph);
-
-      const pCornerLen = Math.max(8, Math.min(pw, ph) * 0.25);
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(pMirX, pMirY + pCornerLen); ctx.lineTo(pMirX, pMirY); ctx.lineTo(pMirX + pCornerLen, pMirY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(pMirX + pw - pCornerLen, pMirY); ctx.lineTo(pMirX + pw, pMirY); ctx.lineTo(pMirX + pw, pMirY + pCornerLen);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(pMirX, pMirY + ph - pCornerLen); ctx.lineTo(pMirX, pMirY + ph); ctx.lineTo(pMirX + pCornerLen, pMirY + ph);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(pMirX + pw - pCornerLen, pMirY + ph); ctx.lineTo(pMirX + pw, pMirY + ph); ctx.lineTo(pMirX + pw, pMirY + ph - pCornerLen);
-      ctx.stroke();
-
-      const pTag = `📱 Mobile Device (${pct}%)`;
-      ctx.font = "bold 11px sans-serif";
-      const pMetrics = ctx.measureText(pTag);
-      const pTagW = pMetrics.width + 12;
-      const pTagY = Math.max(0, pMirY - 18);
-
-      ctx.fillStyle = "#EF4444";
-      ctx.fillRect(pMirX, pTagY, pTagW, 18);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillText(pTag, pMirX + 6, pTagY + 13);
-    }
-
-    // =========================================================================
-    // 6. Prohibited Academic Materials / External Displays Overlays
+    // 5. Prohibited Academic Materials / External Displays Overlays
     // =========================================================================
     if (phoneResult && phoneResult.objectDetected && phoneResult.objectBox) {
       const ob = phoneResult.objectBox;
@@ -586,10 +510,7 @@ const ProctoringEngine = (() => {
     const clientEventId = `${warning.type}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     // 1. Display Candidate-Facing POPUP DIALOG BOXES & Banners on EVERY WARNING
-    if (warning.type === "MOBILE_PHONE_DETECTED") {
-      showPhoneModal(warning.message);
-      showVisionBanner("MOBILE_PHONE", warning.message, "danger");
-    } else if (warning.type === "UNAUTHORIZED_OBJECT_DETECTED") {
+    if (warning.type === "UNAUTHORIZED_OBJECT_DETECTED") {
       showProhibitedObjectModal(warning.message, warning.box ? warning.box.label : "Prohibited Material");
       showVisionBanner("UNAUTHORIZED_OBJECT", warning.message, "danger");
     } else if (warning.type === "MULTIPLE_FACES_DETECTED" || warning.type === "MULTIPLE_PEOPLE_DETECTED") {

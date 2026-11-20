@@ -107,25 +107,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const now = Date.now();
         let faceResult = typeof HeadPoseModule !== "undefined" ?
           await HeadPoseModule.processVideoFrame(webcamPreview, now) : null;
-        const phoneResult = (typeof PhoneDetectorModule !== "undefined" && PhoneDetectorModule.isReady()) ?
-          await PhoneDetectorModule.processVideoFrame(webcamPreview, now) : null;
-
-        const isMediaPipeActive = (typeof HeadPoseModule !== "undefined" && HeadPoseModule.isReady());
-        if (!isMediaPipeActive && (!faceResult || !faceResult.faceDetected) && phoneResult && phoneResult.personBox) {
-          const pb = phoneResult.personBox;
-          const headW = pb.width * 0.65;
-          const headH = pb.height * 0.40;
-          faceResult = {
-            faceDetected: true,
-            box: { x: pb.x + (pb.width - headW) / 2, y: pb.y, width: headW, height: headH },
-            color: "#10B981",
-            direction: "NORMAL",
-            isWarning: false
-          };
-        }
 
         if (deviceCheckCanvas && typeof ProctoringEngine !== "undefined") {
-          ProctoringEngine.renderCanvasOverlay(webcamPreview, deviceCheckCanvas, faceResult, phoneResult);
+          ProctoringEngine.renderCanvasOverlay(webcamPreview, deviceCheckCanvas, faceResult, null);
         }
       }
     }, 250);
@@ -171,28 +155,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (e) {
       console.warn("HeadPose init error:", e);
-    }
-
-    // Phone Detector Module Initialization
-    if (typeof PhoneDetectorModule !== "undefined") {
-      try {
-        const phoneOk = await PhoneDetectorModule.initialize((msg) => {
-          if (calibPhoneStatus) calibPhoneStatus.textContent = msg;
-        });
-
-        if (calibPhoneStatus) {
-          if (phoneOk) {
-            calibPhoneStatus.className = "badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-1";
-            calibPhoneStatus.innerHTML = '<i class="bi bi-phone me-1"></i> Phone Guard: Active';
-          } else {
-            calibPhoneStatus.className = "badge bg-dark text-muted border border-secondary px-2 py-1";
-            calibPhoneStatus.innerHTML = '<i class="bi bi-info-circle me-1"></i> Phone Guard: Setup Mode';
-            calibPhoneStatus.title = "Dedicated model assets can be placed in /static/models/phone_detector/";
-          }
-        }
-      } catch (pe) {
-        console.warn("Phone detector init error:", pe);
-      }
     }
   }
 

@@ -198,12 +198,6 @@ const IntegrityMonitor = (() => {
       }, 2000);
     }
 
-    if (typeof PhoneDetectorModule !== "undefined") {
-      PhoneDetectorModule.setOnWarning(handleVisionWarning);
-      PhoneDetectorModule.setOnStatusUpdate(updatePhoneHUD);
-      PhoneDetectorModule.initialize();
-    }
-
     // Direct high-performance sampling loop (~5 FPS)
     visionLoopTimer = setInterval(async () => {
       if (!videoEl || videoEl.readyState < 2) {
@@ -220,29 +214,9 @@ const IntegrityMonitor = (() => {
         let faceResult = typeof HeadPoseModule !== "undefined" ?
           await HeadPoseModule.processVideoFrame(videoEl, now) : null;
 
-        // 2. Process Mobile Phone Detection
-        const phoneResult = (typeof PhoneDetectorModule !== "undefined" && PhoneDetectorModule.isReady()) ?
-          await PhoneDetectorModule.processVideoFrame(videoEl, now) : null;
-
-        // 3. Fallback box ONLY while MediaPipe is warming up
-        const isMediaPipeActive = (typeof HeadPoseModule !== "undefined" && HeadPoseModule.isReady());
-        if (!isMediaPipeActive && (!faceResult || !faceResult.faceDetected) && phoneResult && phoneResult.personBox) {
-          const pb = phoneResult.personBox;
-          const headW = pb.width * 0.65;
-          const headH = pb.height * 0.40;
-          faceResult = {
-            faceDetected: true,
-            box: { x: pb.x + (pb.width - headW) / 2, y: pb.y, width: headW, height: headH },
-            color: "#10B981",
-            direction: "NORMAL",
-            isWarning: false,
-            sustainedMs: 0
-          };
-        }
-
-        // 4. Render OpenCV bounding boxes directly onto canvas
+        // 2. Render OpenCV bounding boxes directly onto canvas
         if (canvasEl && typeof ProctoringEngine !== "undefined") {
-          ProctoringEngine.renderCanvasOverlay(videoEl, canvasEl, faceResult, phoneResult);
+          ProctoringEngine.renderCanvasOverlay(videoEl, canvasEl, faceResult, null);
         }
       } catch (err) {
         console.warn("Vision loop tick notice:", err);
@@ -264,10 +238,7 @@ const IntegrityMonitor = (() => {
     console.warn("Vision violation triggered:", warning);
 
     // 1. Immediately display candidate-facing popup warning modal
-    if (warning.type === "MOBILE_PHONE_DETECTED") {
-      showPhoneWarningModal(warning.message);
-      showVisionBanner(warning.message, "danger");
-    } else if (warning.type === "MULTIPLE_FACES_DETECTED" || warning.type === "MULTIPLE_PEOPLE_DETECTED") {
+    if (warning.type === "MULTIPLE_FACES_DETECTED" || warning.type === "MULTIPLE_PEOPLE_DETECTED") {
       showMultiplePersonsModal(warning.message);
       showVisionBanner(warning.message, "danger");
     } else if (warning.type === "HEAD_TURN_LEFT" || warning.type === "HEAD_TURN_RIGHT" || warning.type === "HEAD_TILT_DOWN") {
@@ -298,20 +269,6 @@ const IntegrityMonitor = (() => {
       const textEl = document.getElementById("multiplePersonsModalText");
       if (textEl && message) textEl.textContent = message;
       multiplePersonsModal.show();
-    }
-  }
-
-  function showPhoneWarningModal(message) {
-    if (!phoneWarningModal) {
-      const el = document.getElementById("phoneWarningModal");
-      if (el && window.bootstrap) {
-        phoneWarningModal = new bootstrap.Modal(el, { backdrop: "static", keyboard: false });
-      }
-    }
-    if (phoneWarningModal) {
-      const textEl = document.getElementById("phoneWarningModalText");
-      if (textEl && message) textEl.textContent = message;
-      phoneWarningModal.show();
     }
   }
 
@@ -456,39 +413,6 @@ const IntegrityMonitor = (() => {
         sidebarHeadBadge.textContent = `Turned: ${status.direction}`;
         sidebarHeadBadge.className = cls;
       }
-    }
-  }
-
-  function updatePhoneHUD(status) {
-    const hudPhoneBadge = document.getElementById("hudPhoneBadge");
-    const sidebarPhoneBadge = document.getElementById("sidebarPhoneBadge");
-
-    if (hudPhoneBadge) {
-      if (!status.isAvailable) {
-        hudPhoneBadge.className = "badge bg-dark text-muted border border-secondary";
-        hudPhoneBadge.innerHTML = '<i class="bi bi-phone me-1"></i> Phone Guard';
-      } else if (status.phoneDetected) {
-        hudPhoneBadge.className = "badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-40";
-        hudPhoneBadge.innerHTML = '<i class="bi bi-phone-vibrate-fill me-1"></i> Phone Alert';
-      } else {
-        hudPhoneBadge.className = "badge bg-success bg-opacity-20 text-success border border-success border-opacity-30";
-        hudPhoneBadge.innerHTML = '<i class="bi bi-phone me-1"></i> Phone Guard';
-      }
-    }
-
-    if (sidebarPhoneBadge) {
-      if (status.phoneDetected) {
-        sidebarPhoneBadge.className = "text-danger fw-bold small";
-        sidebarPhoneBadge.innerHTML = '<i class="bi bi-phone-vibrate-fill me-1"></i>Phone Alert';
-      } else {
-        sidebarPhoneBadge.className = "text-success fw-medium small";
-        sidebarPhoneBadge.innerHTML = '<i class="bi bi-phone me-1"></i>Phone Guard';
-      }
-    }
-
-    if (sidebarFaceBadge && status.multiplePersonsDetected) {
-      sidebarFaceBadge.className = "badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-40";
-      sidebarFaceBadge.innerHTML = `<i class="bi bi-people-fill me-1"></i> Multiple People (${status.personCount})`;
     }
   }
 

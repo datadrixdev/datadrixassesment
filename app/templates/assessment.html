@@ -312,37 +312,6 @@
   </div>
 </div>
 
-<!-- =========================================================================
-     MODAL 3: Mobile Phone Detected Alert Modal
-     ========================================================================= -->
-<div class="modal fade" id="phoneWarningModal" tabindex="-1" aria-labelledby="phoneWarningLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-danger shadow-lg" style="background: #131C2E;">
-      <div class="modal-header bg-danger bg-opacity-15 border-bottom border-danger border-opacity-30">
-        <h5 class="modal-title fw-bold text-danger" id="phoneWarningLabel">
-          <i class="bi bi-phone-vibrate-fill me-2"></i> Mobile Phone Detected
-        </h5>
-      </div>
-      <div class="modal-body p-4 text-center">
-        <div class="mb-3">
-          <i class="bi bi-phone-slash-fill text-danger fs-1"></i>
-        </div>
-        <h6 class="fw-bold text-white mb-2">Unauthorized Device In Camera Area</h6>
-        <p class="text-secondary small mb-3 lh-base" id="phoneWarningModalText">
-          A mobile phone appears to be visible in your camera view. Please remove it from the camera area and continue the assessment without unauthorized assistance.
-        </p>
-        <div class="p-2 bg-dark bg-opacity-60 border border-secondary-subtle rounded text-muted small">
-          <i class="bi bi-info-circle me-1"></i> This incident has been logged as a potential policy violation.
-        </div>
-      </div>
-      <div class="modal-footer border-top border-secondary-subtle justify-content-center">
-        <button type="button" class="btn btn-danger fw-bold px-4" data-bs-dismiss="modal">
-          I Have Removed Phone &bull; Continue
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- =========================================================================
      MODAL 4: Head Movement / Looking Away Alert Modal
@@ -558,13 +527,8 @@
   window.dispatchEvent(new CustomEvent("mediapipe-vision-loaded"));
 </script>
 
-<!-- TensorFlow.js & COCO-SSD for Mobile Phone Detection -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
-
 <!-- AI Proctoring Vision Modules -->
 <script src="{{ url_for('static', filename='js/proctoring/head_pose.js') }}?v=4.0"></script>
-<script src="{{ url_for('static', filename='js/proctoring/phone_detector.js') }}?v=4.0"></script>
 <script src="{{ url_for('static', filename='js/proctoring/proctoring_engine.js') }}?v=4.0"></script>
 
 <!-- Security, Timer, Integrity & Assessment Core Scripts -->
